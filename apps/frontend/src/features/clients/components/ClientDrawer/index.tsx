@@ -45,6 +45,8 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
   const [promos, setPromos] = useState<any[]>([]);
   const [clientEquipment, setClientEquipment] = useState<any[]>([]);
   const [clientTickets, setClientTickets] = useState<any[]>([]);
+  const [newTicketTipo, setNewTicketTipo] = useState<string>('');
+  const [newTicketDesc, setNewTicketDesc] = useState('');
   const [noteText, setNoteText] = useState('');
   const [payMonth, setPayMonth] = useState<dayjs.Dayjs | null>(null);
   const [paySubId, setPaySubId] = useState<string>('');
@@ -287,6 +289,23 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
           key: 'tickets', label: <><ExclamationCircleOutlined /> Tickets</>,
           children: (
             <Spin spinning={ticketsLoading}>
+              {canOperate && estado === 'ACTIVO' && (
+                <Space.Compact style={{ width: '100%', marginBottom: 8 }}>
+                  <Select placeholder="Tipo" style={{ width: 160 }} value={newTicketTipo || undefined} onChange={setNewTicketTipo}
+                    options={[
+                      { value: 'SIN_SENIAL', label: 'Sin señal' },
+                      { value: 'LENTITUD_INTERNET', label: 'Lentitud internet' },
+                      { value: 'RECONEXION', label: 'Reconexión' },
+                      { value: 'INSTALACION', label: 'Instalación' },
+                      { value: 'CAMBIO_EQUIPO', label: 'Cambio equipo' },
+                      { value: 'OTRO', label: 'Otro' },
+                    ]} />
+                  <Input placeholder="Descripción (opcional)" value={newTicketDesc} onChange={(e) => setNewTicketDesc(e.target.value)} />
+                  <Button type="primary" disabled={!newTicketTipo} onClick={async () => {
+                    try { await ticketsApi.create(data.clientId, newTicketTipo, newTicketDesc || undefined); message.success('Ticket creado'); setNewTicketTipo(''); setNewTicketDesc(''); loadTickets(); } catch (err) { message.error(getErrorMessage(err)); }
+                  }}>Crear</Button>
+                </Space.Compact>
+              )}
               {clientTickets.length > 0 ? (
                 <List size="small" dataSource={clientTickets} renderItem={(t: any) => (
                   <List.Item>
