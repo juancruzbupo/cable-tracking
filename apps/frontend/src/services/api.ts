@@ -7,6 +7,8 @@ import type {
   ClientWithDebt,
   ClientDebtInfo,
   ClientDetailResult,
+  ClientNote,
+  AuditLogEntry,
   PaginatedResponse,
   ClientStatus,
   DebtStatus,
@@ -100,6 +102,64 @@ export const clientsApi = {
 
   getStats: async () => {
     const { data } = await api.get('/clients/stats');
+    return data;
+  },
+
+  create: async (body: {
+    nombreOriginal: string;
+    codigoOriginal?: string;
+    calle?: string;
+    subscriptions: Array<{ tipo: 'CABLE' | 'INTERNET'; fechaAlta: string }>;
+  }) => {
+    const { data } = await api.post('/clients', body);
+    return data;
+  },
+
+  deactivate: async (id: string) => {
+    const { data } = await api.patch(`/clients/${id}/deactivate`);
+    return data;
+  },
+
+  reactivate: async (id: string) => {
+    const { data } = await api.patch(`/clients/${id}/reactivate`);
+    return data;
+  },
+
+  deactivateSub: async (clientId: string, subId: string) => {
+    const { data } = await api.patch(`/clients/${clientId}/subscriptions/${subId}/deactivate`);
+    return data;
+  },
+
+  reactivateSub: async (clientId: string, subId: string) => {
+    const { data } = await api.patch(`/clients/${clientId}/subscriptions/${subId}/reactivate`);
+    return data;
+  },
+
+  createPayment: async (clientId: string, subId: string, year: number, month: number) => {
+    const { data } = await api.post(`/clients/${clientId}/subscriptions/${subId}/payments`, { year, month });
+    return data;
+  },
+
+  deletePayment: async (clientId: string, subId: string, periodId: string) => {
+    await api.delete(`/clients/${clientId}/subscriptions/${subId}/payments/${periodId}`);
+  },
+
+  getNotes: async (clientId: string): Promise<ClientNote[]> => {
+    const { data } = await api.get(`/clients/${clientId}/notes`);
+    return data;
+  },
+
+  createNote: async (clientId: string, content: string): Promise<ClientNote> => {
+    const { data } = await api.post(`/clients/${clientId}/notes`, { content });
+    return data;
+  },
+
+  deleteNote: async (clientId: string, noteId: string) => {
+    await api.delete(`/clients/${clientId}/notes/${noteId}`);
+  },
+
+  getHistory: async (clientId: string): Promise<AuditLogEntry[]> => {
+    const { data } = await api.get(`/clients/${clientId}/history`);
     return data;
   },
 };

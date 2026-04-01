@@ -38,6 +38,9 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  notes     ClientNote[]
+  auditLogs AuditLog[]
+
   @@map("users")
 }
 
@@ -53,6 +56,7 @@ model Client {
   subscriptions      Subscription[]
   documents          Document[]
   paymentPeriods     PaymentPeriod[]
+  notes              ClientNote[]
 
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
@@ -145,4 +149,37 @@ model ImportLog {
   @@index([tipo])
   @@index([executedAt])
   @@map("import_logs")
+}
+
+model ClientNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  content   String
+
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@map("client_notes")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json?
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

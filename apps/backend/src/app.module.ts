@@ -1,6 +1,7 @@
 import { Module, Controller, Get } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { AuditModule } from './common/audit/audit.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { ImportModule } from './modules/import/import.module';
@@ -23,6 +24,7 @@ class HealthController {
 @Module({
   imports: [
     PrismaModule,
+    AuditModule,
     ClientsModule,
     DocumentsModule,
     ImportModule,

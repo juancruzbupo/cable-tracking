@@ -259,15 +259,23 @@ export class ImportService {
 
     await this.prisma.executeInTransaction(
       async (tx) => {
-        // ── PASO 1: PISAR → borrar todo del tipo ─────────────
+        // ── PASO 1: PISAR → borrar todo del tipo (excepto manuales) ──
         await tx.paymentPeriod.deleteMany({
-          where: { document: { tipo: docType } },
+          where: {
+            document: {
+              tipo: docType,
+              NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
+            },
+          },
         });
         const deleted = await tx.document.deleteMany({
-          where: { tipo: docType },
+          where: {
+            tipo: docType,
+            NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
+          },
         });
         this.logger.log(
-          `Eliminados ${deleted.count} documentos tipo ${tipo}`,
+          `Eliminados ${deleted.count} documentos tipo ${tipo} (manuales preservados)`,
         );
 
         // ── PASO 2: Cargar mapas (clientes + suscripciones) ─

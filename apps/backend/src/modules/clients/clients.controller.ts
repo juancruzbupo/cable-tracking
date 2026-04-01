@@ -1,13 +1,21 @@
-import { Controller, Get, Param, Query, NotFoundException } from '@nestjs/common';
+import {
+  Controller, Get, Post, Patch, Delete, Param, Query, Body, Request,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
+import { ClientsOperationsService } from './clients-operations.service';
 import { FindClientsDto } from './dto/find-clients.dto';
 import { FindClientDetailDto } from './dto/find-client-detail.dto';
+import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Clients')
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+    private readonly ops: ClientsOperationsService,
+  ) {}
 
   @Get()
   findAll(@Query() filters: FindClientsDto) {
@@ -20,18 +28,86 @@ export class ClientsController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @Query() query: FindClientDetailDto,
-  ) {
-    const result = await this.clientsService.findOneWithDebt(
-      id,
-      query.docPage,
-      query.docLimit,
-    );
-    if (!result) {
-      throw new NotFoundException(`Cliente ${id} no encontrado`);
-    }
+  async findOne(@Param('id') id: string, @Query() query: FindClientDetailDto) {
+    const result = await this.clientsService.findOneWithDebt(id, query.docPage, query.docLimit);
+    if (!result) throw new NotFoundException(`Cliente ${id} no encontrado`);
     return result;
+  }
+
+  // ── Alta de cliente ──────────────────────────────────────
+  @Post()
+  @Roles('ADMIN', 'OPERADOR')
+  createClient(@Request() req: any, @Body() body: any) {
+    return this.ops.createClient(req.user.id, body);
+  }
+
+  // ── Baja / Reactivación ──────────────────────────────────
+  @Patch(':id/deactivate')
+  @Roles('ADMIN', 'OPERADOR')
+  deactivateClient(@Request() req: any, @Param('id') id: string) {
+    return this.ops.deactivateClient(req.user.id, id);
+  }
+
+  @Patch(':id/reactivate')
+  @Roles('ADMIN')
+  reactivateClient(@Request() req: any, @Param('id') id: string) {
+    return this.ops.reactivateClient(req.user.id, id);
+  }
+
+  // ── Suscripciones ────────────────────────────────────────
+  @Patch(':id/subscriptions/:subId/deactivate')
+  @Roles('ADMIN', 'OPERADOR')
+  deactivateSub(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string) {
+    return this.ops.deactivateSubscription(req.user.id, id, subId);
+  }
+
+  @Patch(':id/subscriptions/:subId/reactivate')
+  @Roles('ADMIN')
+  reactivateSub(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string) {
+    return this.ops.reactivateSubscription(req.user.id, id, subId);
+  }
+
+  @Patch(':id/subscriptions/:subId')
+  @Roles('ADMIN')
+  updateSubFechaAlta(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body('fechaAlta') fechaAlta: string) {
+    return this.ops.updateSubscriptionFechaAlta(req.user.id, id, subId, fechaAlta);
+  }
+
+  // ── Pagos manuales ───────────────────────────────────────
+  @Post(':id/subscriptions/:subId/payments')
+  @Roles('ADMIN', 'OPERADOR')
+  createPayment(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body() body: { year: number; month: number }) {
+    return this.ops.createManualPayment(req.user.id, id, subId, body.year, body.month);
+  }
+
+  @Delete(':id/subscriptions/:subId/payments/:periodId')
+  @Roles('ADMIN')
+  deletePayment(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Param('periodId') periodId: string) {
+    return this.ops.deleteManualPayment(req.user.id, id, subId, periodId);
+  }
+
+  // ── Notas ────────────────────────────────────────────────
+  @Get(':id/notes')
+  getNotes(@Param('id') id: string) {
+    return this.ops.getNotes(id);
+  }
+
+  @Post(':id/notes')
+  @Roles('ADMIN', 'OPERADOR')
+  createNote(@Request() req: any, @Param('id') id: string, @Body('content') content: string) {
+    return this.ops.createNote(req.user.id, id, content);
+  }
+
+  @Delete(':id/notes/:noteId')
+  @Roles('ADMIN')
+  deleteNote(@Request() req: any, @Param('id') id: string, @Param('noteId') noteId: string) {
+    return this.ops.deleteNote(req.user.id, id, noteId);
+  }
+
+  // ── Historial ────────────────────────────────────────────
+  @Get(':id/history')
+  @Roles('ADMIN', 'OPERADOR')
+  getHistory(@Param('id') id: string) {
+    return this.ops.getHistory(id);
   }
 }

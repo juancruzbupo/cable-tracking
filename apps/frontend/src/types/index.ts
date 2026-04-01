@@ -182,6 +182,28 @@ export interface DashboardMetrics {
   ultimasImportaciones: ImportLog[];
 }
 
+// ── Notes & Audit ──────────────────────────────────────────────────────────
+
+export interface ClientNote {
+  id: string;
+  clientId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  user: { name: string };
+}
+
+export interface AuditLogEntry {
+  id: string;
+  userId: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  user: { name: string };
+}
+
 // ── Pagination ──────────────────────────────────────────────────────────────
 
 export interface Pagination {
