@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Typography, Form, Input, InputNumber, Select, Button, Tag, Spin, message } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
-import { fiscalApi, getErrorMessage } from '../services/api';
+import { fiscalApi, getErrorMessage } from '../../services/api';
 
 export default function FiscalConfigPage() {
   const [config, setConfig] = useState<any>(null);

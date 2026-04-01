@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Card, Form, Input, Button, Typography, message } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
-import { useAuth } from '../context/AuthContext';
-import { getErrorMessage } from '../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { getErrorMessage } from '../../services/api';
 
 export default function LoginPage() {
   const { login } = useAuth();

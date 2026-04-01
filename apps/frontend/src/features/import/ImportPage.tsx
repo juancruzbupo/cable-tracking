@@ -6,8 +6,8 @@ import {
 import {
   UploadOutlined, CheckCircleOutlined, WarningOutlined, FileExcelOutlined, HistoryOutlined,
 } from '@ant-design/icons';
-import { importApi } from '../services/api';
-import type { ImportPreview, ImportResult, ImportLog } from '../types';
+import { importApi } from '../../services/api';
+import type { ImportPreview, ImportResult, ImportLog } from '../../types';
 
 type ImportType = 'clientes' | 'ramitos' | 'facturas';
 

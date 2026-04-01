@@ -3,8 +3,8 @@ import {
   Card, Table, Typography, Button, Modal, Form, Input, Select, Switch, Space, message,
 } from 'antd';
 import { PlusOutlined, UserOutlined } from '@ant-design/icons';
-import { usersApi, getErrorMessage } from '../services/api';
-import type { User, UserRole } from '../types';
+import { usersApi, getErrorMessage } from '../../services/api';
+import type { User, UserRole } from '../../types';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);

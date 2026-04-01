@@ -24,8 +24,8 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { dashboardApi, getErrorMessage } from '../services/api';
-import type { DashboardMetrics } from '../types';
+import { dashboardApi, getErrorMessage } from '../../services/api';
+import type { DashboardMetrics } from '../../types';
 
 const COLORS = ['#52c41a', '#faad14', '#ff7a45', '#f5222d'];
 

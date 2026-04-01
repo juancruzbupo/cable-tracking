@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Select, Tag, Typography, Space, message } from 'antd';
-import { documentsApi, getErrorMessage } from '../services/api';
-import type { Document, Pagination } from '../types';
+import { documentsApi, getErrorMessage } from '../../services/api';
+import type { Document, Pagination } from '../../types';
 
 const { Option } = Select;
 

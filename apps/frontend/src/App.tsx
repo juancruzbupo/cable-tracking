@@ -7,19 +7,19 @@ import {
 } from '@ant-design/icons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import DashboardPage from './pages/DashboardPage';
-import ClientsPage from './pages/ClientsPage';
-import ImportPage from './pages/ImportPage';
-import DocumentsPage from './pages/DocumentsPage';
-import CortePage from './pages/CortePage';
-import LoginPage from './pages/LoginPage';
-import UsersPage from './pages/UsersPage';
-import PlansPage from './pages/PlansPage';
-import ReportesPage from './pages/ReportesPage';
-import PromotionsPage from './pages/PromotionsPage';
-import ComprobantesPage from './pages/ComprobantesPage';
-import FiscalConfigPage from './pages/FiscalConfigPage';
+import { ErrorBoundary } from './shared/components/ErrorBoundary';
+import DashboardPage from './features/dashboard/DashboardPage';
+import ClientsPage from './features/clients/ClientsPage';
+import ImportPage from './features/import/ImportPage';
+import DocumentsPage from './features/documents/DocumentsPage';
+import CortePage from './features/corte/CortePage';
+import LoginPage from './features/auth/LoginPage';
+import UsersPage from './features/users/UsersPage';
+import PlansPage from './features/plans/PlansPage';
+import ReportesPage from './features/reports/ReportesPage';
+import PromotionsPage from './features/promotions/PromotionsPage';
+import ComprobantesPage from './features/fiscal/ComprobantesPage';
+import FiscalConfigPage from './features/fiscal/FiscalConfigPage';
 
 const { Sider, Content, Header } = Layout;
 

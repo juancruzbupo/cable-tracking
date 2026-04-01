@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { message } from 'antd';
-import { clientsApi, getErrorMessage } from '../services/api';
-import { useDebounce } from './useDebounce';
+import { clientsApi, getErrorMessage } from '../../../services/api';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 import type {
   ClientWithDebt,
   ClientDetailResult,
   ClientStatus,
   DebtStatus,
   Pagination,
-} from '../types';
+} from '../../../types';
 
 export function useClients() {
   const [clients, setClients] = useState<ClientWithDebt[]>([]);

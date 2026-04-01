@@ -3,9 +3,9 @@ import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button,
 import { WarningOutlined, ScissorOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import type { SorterResult } from 'antd/es/table/interface';
 import * as XLSX from 'xlsx';
-import { dashboardApi, exportApi, billingApi, getErrorMessage } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import type { ClientDebtInfo } from '../types';
+import { dashboardApi, exportApi, billingApi, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import type { ClientDebtInfo } from '../../types';
 
 export default function CortePage() {
   const [clients, setClients] = useState<ClientDebtInfo[]>([]);

@@ -1,237 +1,23 @@
 import { useState } from 'react';
 import {
-  Card, Table, Input, Select, Tag, Space, Typography, Tooltip, Button,
-  message, Drawer, Descriptions, Spin, Timeline, Badge, Divider,
-  DatePicker, Modal, Collapse,
+  Card, Select, Tag, Space, Typography, Button,
+  message, Descriptions, Timeline, Badge, Divider,
+  DatePicker, Modal, Collapse, Input,
 } from 'antd';
 import {
-  SearchOutlined, WarningOutlined, DownloadOutlined, EyeOutlined,
-  CheckCircleFilled, CloseCircleFilled, FileTextOutlined,
-  PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined,
+  WarningOutlined, CheckCircleFilled, CloseCircleFilled, FileTextOutlined,
+  StopOutlined, PlayCircleOutlined, DeleteOutlined,
   HistoryOutlined, MessageOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/es';
-import { clientsApi, exportApi, getErrorMessage } from '../services/api';
-import { useClients, useClientDetail } from '../hooks/useClients';
-import { useAuth } from '../context/AuthContext';
-import CreateClientModal from '../components/CreateClientModal';
-import type { ClientWithDebt, ClientDetailResult, ClientStatus, ClientNote, AuditLogEntry } from '../types';
+import { clientsApi, getErrorMessage } from '../../../../services/api';
+import { useAuth } from '../../../../context/AuthContext';
+import type { ClientDetailResult, ClientNote, AuditLogEntry } from '../../../../types';
 
 dayjs.extend(relativeTime);
 dayjs.locale('es');
-
-export default function ClientsPage() {
-  const {
-    clients, pagination, loading, search, setSearch,
-    estado, setEstado, debtStatus, setDebtStatus, load,
-  } = useClients();
-  const detail = useClientDetail();
-  const { hasRole } = useAuth();
-  const [exporting, setExporting] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const canExport = hasRole('ADMIN', 'OPERADOR');
-  const canCreate = hasRole('ADMIN', 'OPERADOR');
-
-  const handleExport = async () => {
-    try {
-      setExporting(true);
-      await exportApi.downloadClients();
-      message.success('Excel descargado');
-    } catch {
-      message.error('Error al exportar clientes');
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const debtTag = (debt: number, corte: boolean) => {
-    if (debt === 0) return <Tag color="green">Al día</Tag>;
-    if (debt === 1) return <Tag color="orange">1 mes</Tag>;
-    if (debt === 2) return <Tag color="volcano">2 meses</Tag>;
-    return (
-      <Tag color="red" icon={<WarningOutlined />}>
-        {debt} meses{corte ? ' · CORTE' : ''}
-      </Tag>
-    );
-  };
-
-  return (
-    <div>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: 16,
-      }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Clientes</Typography.Title>
-        <Space>
-          {canCreate && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              Nuevo cliente
-            </Button>
-          )}
-          {canExport && (
-            <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
-              Exportar Excel
-            </Button>
-          )}
-        </Space>
-      </div>
-
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Input
-            placeholder="Buscar por nombre o código..."
-            prefix={<SearchOutlined />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: 260 }}
-            allowClear
-          />
-          <Select
-            placeholder="Estado"
-            value={estado}
-            onChange={(v) => setEstado(v)}
-            allowClear
-            style={{ width: 130 }}
-            options={[
-              { value: 'ACTIVO', label: 'Activo' },
-              { value: 'BAJA', label: 'Baja' },
-            ]}
-          />
-          <Select
-            placeholder="Deuda"
-            value={debtStatus}
-            onChange={(v) => setDebtStatus(v)}
-            allowClear
-            style={{ width: 160 }}
-            options={[
-              { value: 'AL_DIA', label: 'Al día' },
-              { value: '1_MES', label: '1 mes' },
-              { value: '2_MESES', label: '2 meses' },
-              { value: 'MAS_2_MESES', label: '+2 meses' },
-            ]}
-          />
-        </Space>
-      </Card>
-
-      <Card>
-        <Table
-          dataSource={clients}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1000 }}
-          rowClassName={(r) => (r.debtInfo?.requiereCorte ? 'row-corte' : '')}
-          pagination={{
-            total: pagination.total,
-            current: pagination.page,
-            pageSize: pagination.limit,
-            showSizeChanger: false,
-            showTotal: (t) => `${t} clientes`,
-            onChange: (p) => load(p),
-          }}
-          columns={[
-            {
-              title: 'Código',
-              dataIndex: 'codCli',
-              width: 80,
-            },
-            {
-              title: 'Nombre',
-              dataIndex: 'nombreNormalizado',
-              ellipsis: true,
-            },
-            {
-              title: 'Estado',
-              dataIndex: 'estado',
-              width: 100,
-              render: (s: ClientStatus) => (
-                <Tag color={s === 'ACTIVO' ? 'blue' : 'default'}>{s}</Tag>
-              ),
-            },
-            {
-              title: 'Alta',
-              dataIndex: 'fechaAlta',
-              width: 110,
-              render: (d: string | null) =>
-                d ? new Date(d).toLocaleDateString('es-AR') : '—',
-            },
-            {
-              title: 'Calle',
-              dataIndex: 'calle',
-              ellipsis: true,
-              render: (v: string | null) => v || '—',
-            },
-            {
-              title: 'Servicios',
-              width: 130,
-              render: (_: unknown, r: ClientWithDebt) => (
-                <Space size={2}>
-                  {r.debtInfo?.subscriptions?.some((s) => s.tipo === 'CABLE') && <Tag color="blue">Cable</Tag>}
-                  {r.debtInfo?.subscriptions?.some((s) => s.tipo === 'INTERNET') && <Tag color="green">Internet</Tag>}
-                </Space>
-              ),
-            },
-            {
-              title: 'Deuda',
-              width: 140,
-              render: (_: unknown, r: ClientWithDebt) =>
-                r.debtInfo
-                  ? debtTag(r.debtInfo.cantidadDeuda, r.debtInfo.requiereCorte)
-                  : '—',
-            },
-            {
-              title: 'Meses adeudados',
-              width: 200,
-              render: (_: unknown, r: ClientWithDebt) => {
-                const m = r.debtInfo?.mesesAdeudados || [];
-                if (m.length === 0) return '—';
-                return (
-                  <Tooltip title={m.join(', ')}>
-                    <span style={{ color: '#f5222d' }}>
-                      {m.slice(0, 3).join(', ')}
-                      {m.length > 3 && ` +${m.length - 3}`}
-                    </span>
-                  </Tooltip>
-                );
-              },
-            },
-            {
-              title: '',
-              width: 50,
-              render: (_: unknown, r: ClientWithDebt) => (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() => detail.openDetail(r.id)}
-                />
-              ),
-            },
-          ]}
-        />
-      </Card>
-
-      {/* Detail Drawer */}
-      <Drawer
-        title={detail.detail?.nombreNormalizado || 'Detalle del cliente'}
-        open={detail.open}
-        onClose={detail.close}
-        width={640}
-        destroyOnClose
-      >
-        {detail.loading && (
-          <Spin size="large" style={{ display: 'block', margin: '60px auto' }} />
-        )}
-        {detail.detail && <ClientDetail data={detail.detail} onRefresh={() => detail.openDetail(detail.detail!.clientId)} />}
-      </Drawer>
-
-      <CreateClientModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => load()} />
-    </div>
-  );
-}
-
-// ── Client Detail Component ──────────────────────────────────
 
 const ACTION_LABELS: Record<string, string> = {
   CLIENT_CREATED: 'Cliente dado de alta',
@@ -246,7 +32,7 @@ const ACTION_LABELS: Record<string, string> = {
   NOTE_DELETED: 'Nota eliminada',
 };
 
-function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh: () => void }) {
+export default function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh: () => void }) {
   const { nombreNormalizado, nombreOriginal, codCli, estado, fechaAlta, calle, requiereCorte, subscriptions, documents } = data;
   const { hasRole } = useAuth();
   const canOperate = hasRole('ADMIN', 'OPERADOR');
@@ -305,11 +91,10 @@ function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh
     } catch (err) { message.error(getErrorMessage(err)); }
   };
 
-  const activeSubs = subscriptions.filter((s) => s.tipo);
+  const activeSubs = subscriptions.filter((s: any) => s.tipo);
 
   return (
     <div>
-      {/* Acciones de cliente */}
       <Space style={{ marginBottom: 12 }}>
         {canOperate && estado === 'ACTIVO' && (
           <Button danger icon={<StopOutlined />} size="small" onClick={handleDeactivate}>Dar de baja</Button>
@@ -337,7 +122,7 @@ function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh
       )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        {subscriptions.map((sub) => (
+        {subscriptions.map((sub: any) => (
           <Card key={sub.subscriptionId} size="small" style={{ flex: 1, minWidth: 240, border: sub.requiereCorte ? '1px solid #ff4d4f' : undefined }}
             title={<Space>{sub.tipo === 'CABLE' ? '📺' : '🌐'} {sub.tipo} {sub.requiereCorte && <Tag color="red" style={{ margin: 0 }}>CORTE</Tag>}</Space>}
             extra={canOperate && estado === 'ACTIVO' && (
@@ -349,7 +134,7 @@ function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh
               <div style={{ textAlign: 'center' }}><div style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>{sub.mesesPagados.length}</div><div style={{ color: '#888', fontSize: 11 }}>pagados</div></div>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {sub.mesesObligatorios.slice(-6).map((m) => {
+              {sub.mesesObligatorios.slice(-6).map((m: string) => {
                 const pagado = sub.mesesPagados.includes(m);
                 const promoGratis = sub.mesesConPromoGratis?.includes(m);
                 const cubierto = pagado || promoGratis;
@@ -362,20 +147,18 @@ function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh
         ))}
       </div>
 
-      {/* Pago manual */}
       {canOperate && activeSubs.length > 0 && estado === 'ACTIVO' && (
         <>
           <Divider orientation="left">Registrar pago manual</Divider>
           <Space>
             <Select placeholder="Servicio" style={{ width: 140 }} value={paySubId || undefined} onChange={setPaySubId}
-              options={activeSubs.map((s) => ({ value: s.subscriptionId, label: s.tipo }))} />
+              options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
             <DatePicker picker="month" value={payMonth} onChange={setPayMonth} disabledDate={(d) => d.isAfter(dayjs())} format="MMM YYYY" />
             <Button type="primary" size="small" onClick={handlePayment} disabled={!payMonth || !paySubId}>Registrar</Button>
           </Space>
         </>
       )}
 
-      {/* Notas */}
       <Collapse style={{ marginTop: 16 }} items={[
         {
           key: 'notes', label: <><MessageOutlined /> Notas</>,
@@ -419,7 +202,6 @@ function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh
         } as any,
       ]} />
 
-      {/* Documentos */}
       {documents.length > 0 && (
         <>
           <Divider orientation="left"><FileTextOutlined /> Documentos ({data.docPagination.total})</Divider>

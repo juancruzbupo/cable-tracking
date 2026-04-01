@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Card, Typography, DatePicker, Row, Col, Statistic, Progress, Table, Button, Space, Spin, message } from 'antd';
 import { BarChartOutlined, ArrowUpOutlined, ArrowDownOutlined, FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { billingApi, getErrorMessage } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { billingApi, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ReportesPage() {
   const [month, setMonth] = useState<dayjs.Dayjs>(dayjs().subtract(1, 'month'));

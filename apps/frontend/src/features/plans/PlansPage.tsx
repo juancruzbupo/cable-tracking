@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Tag, Typography, Button, Modal, Form, Input, InputNumber, Select, Switch, message } from 'antd';
 import { PlusOutlined, DollarOutlined } from '@ant-design/icons';
-import { plansApi, getErrorMessage } from '../services/api';
-import type { ServicePlan } from '../types';
+import { plansApi, getErrorMessage } from '../../services/api';
+import type { ServicePlan } from '../../types';
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<ServicePlan[]>([]);

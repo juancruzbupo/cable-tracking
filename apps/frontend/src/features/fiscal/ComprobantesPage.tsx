@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Tag, Typography, Button, Select, Space, message, Modal } from 'antd';
 import { FileTextOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { fiscalApi, getErrorMessage } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { fiscalApi, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const ESTADO_COLORS: Record<string, string> = { PENDIENTE: 'orange', EMITIDO: 'green', ANULADO: 'red', ERROR: 'red' };
 

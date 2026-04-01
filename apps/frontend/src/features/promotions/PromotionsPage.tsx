@@ -5,9 +5,9 @@ import {
 } from 'antd';
 import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { promotionsApi, plansApi, getErrorMessage } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import type { Promotion, ServicePlan, PromoType, PromoScope } from '../types';
+import { promotionsApi, plansApi, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import type { Promotion, ServicePlan, PromoType, PromoScope } from '../../types';
 
 const TYPE_COLORS: Record<PromoType, string> = { MESES_GRATIS: 'green', PORCENTAJE: 'blue', MONTO_FIJO: 'orange', PRECIO_FIJO: 'purple' };
 const SCOPE_LABELS: Record<PromoScope, string> = { PLAN: 'Plan', CLIENTE: 'Cliente' };

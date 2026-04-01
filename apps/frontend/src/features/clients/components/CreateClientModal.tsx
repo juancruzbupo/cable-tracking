@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Modal, Form, Input, Checkbox, DatePicker, Space, message } from 'antd';
 import dayjs from 'dayjs';
-import { clientsApi, getErrorMessage } from '../services/api';
-import type { ServiceType } from '../types';
+import { clientsApi, getErrorMessage } from '../../../services/api';
+import type { ServiceType } from '../../../types';
 
 interface Props {
   open: boolean;
