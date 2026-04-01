@@ -62,6 +62,11 @@ enum EstadoComprobante {
   ERROR
 }
 
+enum TipoEmision {
+  RAMITO
+  FACTURA
+}
+
 enum Role {
   ADMIN
   OPERADOR
@@ -107,7 +112,7 @@ model Client {
   provincia          String?           @default("Entre Ríos")
 
   // Tipo de comprobante por cliente
-  tipoComprobante    String            @default("RAMITO") @map("tipo_comprobante")
+  tipoComprobante    TipoEmision       @default(RAMITO) @map("tipo_comprobante")
 
   // Zona de cobranza (para organizar recorridos)
   zona               String?

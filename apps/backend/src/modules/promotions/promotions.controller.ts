@@ -20,6 +20,7 @@ export class PromotionsController {
   }
 
   @Get('active')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   findActive() {
     return this.promoService.findActive();
   }

@@ -16,6 +16,7 @@ export type TipoDocumento = 'CUIT' | 'CUIL' | 'DNI' | 'CONSUMIDOR_FINAL';
 export type CondicionFiscal = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTISTA' | 'CONSUMIDOR_FINAL' | 'EXENTO';
 export type TipoComprobante = 'FACTURA_A' | 'FACTURA_B' | 'FACTURA_C' | 'RECIBO_X';
 export type EstadoComprobante = 'PENDIENTE' | 'EMITIDO' | 'ANULADO' | 'ERROR';
+export type TipoEmision = 'RAMITO' | 'FACTURA';
 export type EquipmentStatus = 'EN_DEPOSITO' | 'ASIGNADO' | 'EN_REPARACION' | 'DE_BAJA';
 export type TicketStatus = 'ABIERTO' | 'RESUELTO';
 export type TicketType = 'SIN_SENIAL' | 'LENTITUD_INTERNET' | 'RECONEXION' | 'INSTALACION' | 'CAMBIO_EQUIPO' | 'OTRO';
@@ -59,7 +60,7 @@ export interface Client {
   razonSocial?: string | null;
   telefono?: string | null;
   email?: string | null;
-  tipoComprobante?: TipoComprobante;
+  tipoComprobante?: TipoEmision;
   createdAt: string;
   updatedAt: string;
 }

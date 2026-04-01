@@ -29,6 +29,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   me(@Request() req: any) {
     return req.user;
   }

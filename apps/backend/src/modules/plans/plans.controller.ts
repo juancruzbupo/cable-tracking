@@ -10,6 +10,7 @@ export class PlansController {
   constructor(private readonly plansService: PlansService) {}
 
   @Get()
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   findActive(@Query('tipo') tipo?: ServiceType) {
     return this.plansService.findActive(tipo);
   }

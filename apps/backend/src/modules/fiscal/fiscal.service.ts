@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { TipoComprobante, CondicionFiscal, EstadoComprobante } from '@prisma/client';
+import { TipoComprobante, TipoEmision, CondicionFiscal, EstadoComprobante } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { MockFiscalProvider } from './providers/mock-fiscal.provider';
@@ -45,9 +45,9 @@ export class FiscalService {
     }
   }
 
-  async updateComprobanteConfig(userId: string, clientId: string, tipoComprobante: string) {
+  async updateComprobanteConfig(userId: string, clientId: string, tipoComprobante: TipoEmision) {
     const client = await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
-    if (tipoComprobante === 'FACTURA') {
+    if (tipoComprobante === TipoEmision.FACTURA) {
       if (!client.numeroDocFiscal) throw new BadRequestException('El cliente no tiene CUIT/DNI cargado. Completá los datos fiscales primero.');
     }
     const before = client.tipoComprobante;
@@ -108,7 +108,7 @@ export class FiscalService {
     const client = await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
 
     // Check tipoComprobante — RAMITO clients don't get fiscal invoices
-    if (client.tipoComprobante === 'RAMITO') {
+    if (client.tipoComprobante === TipoEmision.RAMITO) {
       this.logger.log(`Cliente ${client.nombreNormalizado}: tipoComprobante=RAMITO, no se emite comprobante fiscal`);
       return null;
     }

@@ -26,16 +26,19 @@ export class ClientsController {
   ) {}
 
   @Get()
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   findAll(@Query() filters: FindClientsDto) {
     return this.clientsService.findAll(filters);
   }
 
   @Get('stats')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   getStats() {
     return this.clientsService.getDebtStats();
   }
 
   @Get(':id')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   async findOne(@Param('id') id: string, @Query() query: FindClientDetailDto) {
     const result = await this.clientsService.findOneWithDebt(id, query.docPage, query.docLimit);
     if (!result) throw new NotFoundException(`Cliente ${id} no encontrado`);
@@ -102,6 +105,7 @@ export class ClientsController {
 
   // ── Notas ────────────────────────────────────────────────
   @Get(':id/notes')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   getNotes(@Param('id') id: string) {
     return this.ops.getNotes(id);
   }
@@ -140,6 +144,7 @@ export class ClientsController {
 
   // ── Promociones ────────────────────────────────────────
   @Get(':id/promotions')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   getClientPromotions(@Param('id') id: string) {
     return this.promoService.getClientPromotions(id);
   }
@@ -158,6 +163,7 @@ export class ClientsController {
 
   // ── Equipos ──────────────────────────────────────────────
   @Get(':id/equipment')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   getClientEquipment(@Param('id') id: string) {
     return this.equipmentService.getClientEquipment(id);
   }
@@ -176,6 +182,7 @@ export class ClientsController {
 
   // ── Tickets ──────────────────────────────────────────────
   @Get(':id/tickets')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
   getClientTickets(@Param('id') id: string) {
     return this.ticketsService.getClientTickets(id);
   }

@@ -4,7 +4,10 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { FindDocumentsDto } from './dto/find-documents.dto';
 
+import { Roles } from '../auth/roles.decorator';
+
 @ApiTags('Documents')
+@Roles('ADMIN', 'OPERADOR', 'VISOR')
 @Controller('documents')
 export class DocumentsController {
   constructor(private readonly prisma: PrismaService) {}
