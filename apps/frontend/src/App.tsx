@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Layout, Menu, Tag, Button, Spin, Dropdown } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, UploadOutlined, FileTextOutlined,
-  ScissorOutlined, UserOutlined, LogoutOutlined,
+  ScissorOutlined, UserOutlined, LogoutOutlined, DollarOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -14,6 +14,8 @@ import DocumentsPage from './pages/DocumentsPage';
 import CortePage from './pages/CortePage';
 import LoginPage from './pages/LoginPage';
 import UsersPage from './pages/UsersPage';
+import PlansPage from './pages/PlansPage';
+import ReportesPage from './pages/ReportesPage';
 
 const { Sider, Content, Header } = Layout;
 
@@ -36,6 +38,8 @@ function AppLayout() {
     ...(hasRole('ADMIN') ? [{ key: '/import', icon: <UploadOutlined />, label: 'Importaciones' }] : []),
     { key: '/documents', icon: <FileTextOutlined />, label: 'Documentos' },
     { key: '/corte', icon: <ScissorOutlined />, label: 'Para Corte' },
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/reportes', icon: <BarChartOutlined />, label: 'Reportes' }] : []),
+    ...(hasRole('ADMIN') ? [{ key: '/plans', icon: <DollarOutlined />, label: 'Planes' }] : []),
     ...(hasRole('ADMIN') ? [{ key: '/users', icon: <UserOutlined />, label: 'Usuarios' }] : []),
   ];
 
@@ -94,6 +98,8 @@ function AppLayout() {
               {hasRole('ADMIN') && <Route path="/import" element={<ImportPage />} />}
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/corte" element={<CortePage />} />
+              {hasRole('ADMIN', 'OPERADOR') && <Route path="/reportes" element={<ReportesPage />} />}
+              {hasRole('ADMIN') && <Route path="/plans" element={<PlansPage />} />}
               {hasRole('ADMIN') && <Route path="/users" element={<UsersPage />} />}
             </Routes>
           </ErrorBoundary>

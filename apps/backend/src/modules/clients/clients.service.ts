@@ -225,7 +225,7 @@ export class ClientsService {
   /**
    * Calcula deuda de una suscripción individual.
    */
-  private calculateSubDebt(
+  calculateSubDebt(
     subId: string,
     tipo: ServiceType,
     estado: ClientStatus,

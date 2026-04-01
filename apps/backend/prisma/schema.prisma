@@ -66,14 +66,35 @@ model Client {
   @@map("clients")
 }
 
+model ServicePlan {
+  id          String      @id @default(uuid()) @db.Uuid
+  nombre      String
+  tipo        ServiceType
+  precio      Decimal     @db.Decimal(10, 2)
+  descripcion String?
+  activo      Boolean     @default(true)
+
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("service_plans")
+}
+
 model Subscription {
-  id        String       @id @default(uuid()) @db.Uuid
-  clientId  String       @map("client_id") @db.Uuid
-  tipo      ServiceType
-  fechaAlta DateTime     @map("fecha_alta") @db.Date
-  estado    ClientStatus @default(ACTIVO)
+  id              String       @id @default(uuid()) @db.Uuid
+  clientId        String       @map("client_id") @db.Uuid
+  tipo            ServiceType
+  fechaAlta       DateTime     @map("fecha_alta") @db.Date
+  estado          ClientStatus @default(ACTIVO)
+  planId          String?      @map("plan_id") @db.Uuid
+  deudaCalculada  Int?         @map("deuda_calculada")
+  requiereCorte   Boolean      @default(false) @map("requiere_corte")
+  ultimoCalculo   DateTime?    @map("ultimo_calculo")
 
   client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan           ServicePlan?    @relation(fields: [planId], references: [id], onDelete: SetNull)
   documents      Document[]
   paymentPeriods PaymentPeriod[]
 

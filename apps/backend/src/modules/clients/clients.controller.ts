@@ -55,6 +55,12 @@ export class ClientsController {
   }
 
   // ── Suscripciones ────────────────────────────────────────
+  @Patch(':id/subscriptions/:subId/plan')
+  @Roles('ADMIN', 'OPERADOR')
+  updateSubPlan(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body('planId') planId: string) {
+    return this.ops.updateSubscriptionPlan(req.user.id, id, subId, planId);
+  }
+
   @Patch(':id/subscriptions/:subId/deactivate')
   @Roles('ADMIN', 'OPERADOR')
   deactivateSub(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string) {

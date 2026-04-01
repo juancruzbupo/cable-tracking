@@ -9,6 +9,7 @@ import type {
   ClientDetailResult,
   ClientNote,
   AuditLogEntry,
+  ServicePlan,
   PaginatedResponse,
   ClientStatus,
   DebtStatus,
@@ -127,6 +128,11 @@ export const clientsApi = {
 
   deactivateSub: async (clientId: string, subId: string) => {
     const { data } = await api.patch(`/clients/${clientId}/subscriptions/${subId}/deactivate`);
+    return data;
+  },
+
+  updateSubPlan: async (clientId: string, subId: string, planId: string) => {
+    const { data } = await api.patch(`/clients/${clientId}/subscriptions/${subId}/plan`, { planId });
     return data;
   },
 
@@ -257,6 +263,56 @@ export const usersApi = {
     const { data } = await api.patch(`/auth/users/${id}`, updates);
     return data;
   },
+};
+
+// ── Plans ─────────────────────────────────────────────────────────────────
+
+export const plansApi = {
+  getActive: async (tipo?: string): Promise<ServicePlan[]> => {
+    const { data } = await api.get('/plans', { params: tipo ? { tipo } : {} });
+    return data;
+  },
+  getAll: async (): Promise<ServicePlan[]> => {
+    const { data } = await api.get('/plans/all');
+    return data;
+  },
+  create: async (plan: { nombre: string; tipo: string; precio: number; descripcion?: string }): Promise<ServicePlan> => {
+    const { data } = await api.post('/plans', plan);
+    return data;
+  },
+  update: async (id: string, updates: Partial<ServicePlan>): Promise<ServicePlan> => {
+    const { data } = await api.patch(`/plans/${id}`, updates);
+    return data;
+  },
+  remove: async (id: string) => {
+    await api.delete(`/plans/${id}`);
+  },
+};
+
+// ── Billing ───────────────────────────────────────────────────────────────
+
+export const billingApi = {
+  downloadInvoice: (clientId: string, month: number, year: number) =>
+    downloadFile(`/billing/invoice/${clientId}?month=${month}&year=${year}`, `factura_${month}_${year}.pdf`),
+
+  downloadBatchInvoices: async (month: number, year: number) => {
+    const response = await api.post('/billing/invoices/batch', { month, year }, { responseType: 'blob', timeout: 300000 });
+    const blob = new Blob([response.data]);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `facturas_${month}_${year}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  },
+
+  getReport: async (month: number, year: number) => {
+    const { data } = await api.get('/billing/report', { params: { month, year } });
+    return data;
+  },
+
+  downloadCortePdf: () => downloadFile('/billing/corte/print', 'corte.pdf'),
 };
 
 export function getErrorMessage(err: unknown): string {

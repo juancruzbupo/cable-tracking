@@ -182,6 +182,18 @@ export interface DashboardMetrics {
   ultimasImportaciones: ImportLog[];
 }
 
+// ── Plans ──────────────────────────────────────────────────────────────────
+
+export interface ServicePlan {
+  id: string;
+  nombre: string;
+  tipo: ServiceType;
+  precio: number;
+  descripcion: string | null;
+  activo: boolean;
+  _count?: { subscriptions: number };
+}
+
 // ── Notes & Audit ──────────────────────────────────────────────────────────
 
 export interface ClientNote {

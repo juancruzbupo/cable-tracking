@@ -8,6 +8,9 @@ import { ImportModule } from './modules/import/import.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ExportModule } from './modules/export/export.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { PlansModule } from './modules/plans/plans.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/roles.guard';
 import { Public } from './modules/auth/public.decorator';
@@ -31,6 +34,9 @@ class HealthController {
     DashboardModule,
     ExportModule,
     AuthModule,
+    PlansModule,
+    SchedulerModule,
+    BillingModule,
   ],
   controllers: [HealthController],
   providers: [

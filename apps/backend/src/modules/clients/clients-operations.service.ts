@@ -261,6 +261,19 @@ export class ClientsOperationsService {
 
   // ── Helpers ──────────────────────────────────────────────
 
+  async updateSubscriptionPlan(userId: string, clientId: string, subId: string, planId: string) {
+    const sub = await this.findSub(clientId, subId);
+    const plan = await this.prisma.servicePlan.findUnique({ where: { id: planId } });
+    if (!plan) throw new NotFoundException('Plan no encontrado');
+    if (!plan.activo) throw new BadRequestException('El plan no está activo');
+    if (plan.tipo !== sub.tipo) throw new BadRequestException(`El plan es de tipo ${plan.tipo} pero la suscripción es ${sub.tipo}`);
+
+    const before = sub.planId;
+    await this.prisma.subscription.update({ where: { id: subId }, data: { planId } });
+    await this.audit.log(userId, 'SUBSCRIPTION_PLAN_UPDATED', 'SUBSCRIPTION', subId, { before, after: planId, planNombre: plan.nombre });
+    return this.prisma.subscription.findUnique({ where: { id: subId }, include: { plan: true } });
+  }
+
   private async findSub(clientId: string, subId: string) {
     const sub = await this.prisma.subscription.findUnique({ where: { id: subId } });
     if (!sub || sub.clientId !== clientId) throw new NotFoundException('Suscripción no encontrada');

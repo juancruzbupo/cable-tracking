@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button, Space, message } from 'antd';
-import { WarningOutlined, ScissorOutlined, DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { WarningOutlined, ScissorOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import type { SorterResult } from 'antd/es/table/interface';
 import * as XLSX from 'xlsx';
-import { dashboardApi, exportApi, getErrorMessage } from '../services/api';
+import { dashboardApi, exportApi, billingApi, getErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { ClientDebtInfo } from '../types';
 
@@ -100,12 +100,17 @@ export default function CortePage() {
         </Typography.Title>
         <Space>
           {canExport && (
+            <Button icon={<FilePdfOutlined />} onClick={() => billingApi.downloadCortePdf().then(() => message.success('PDF descargado')).catch((e) => message.error(getErrorMessage(e)))}>
+              Imprimir lista
+            </Button>
+          )}
+          {canExport && (
             <Button
               icon={<FileExcelOutlined />}
               onClick={handleExportCorte}
               disabled={clients.length === 0}
             >
-              Exportar Corte
+              Exportar Excel
             </Button>
           )}
           {canExport && (
