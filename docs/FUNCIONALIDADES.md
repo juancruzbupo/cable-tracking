@@ -90,7 +90,12 @@
 - Total clientes, activos, bajas.
 - Distribucion de deuda (pie chart): al dia, 1 mes, 2 meses, +2 meses.
 - Indicadores: tasa morosidad, clientes para corte.
-- Conteo documentos: ramitos, facturas, periodos registrados.
+- **MRR (Monthly Recurring Revenue)**: ingreso teorico vs recaudado, desglose cable/internet, suscripciones sin plan.
+- **Tendencia de cobranza**: grafico de linea con % cobrado de los ultimos 12 meses.
+- **Clientes en riesgo**: a exactamente `umbralCorte` meses de deuda (a un paso del corte).
+- **Crecimiento**: altas, bajas y neto del mes, comparacion con mes anterior.
+- **Penetracion internet**: % de clientes con internet, oportunidad (clientes solo cable).
+- **Morosidad por zona**: tabla con distribucion de deuda por zona geografica.
 - Ultimas importaciones con status.
 - **Cache 1 minuto**, invalidado al importar.
 

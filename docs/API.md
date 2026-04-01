@@ -21,7 +21,7 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 ## Clients
 | Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
-| GET | /clients | todos | Lista con filtros `?search,estado,debtStatus,page,limit` |
+| GET | /clients | todos | Lista con filtros `?search,estado,debtStatus,zona,page,limit` |
 | GET | /clients/stats | todos | Estadisticas de deuda |
 | GET | /clients/:id | todos | Detalle con deuda + documentos paginados `?docPage,docLimit` |
 | POST | /clients | ADMIN,OPER | Alta de cliente `{ nombreOriginal, subscriptions[] }` |
@@ -76,8 +76,13 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 ## Dashboard
 | Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
-| GET | /dashboard | todos | Metricas generales (cache 1min) |
+| GET | /dashboard | todos | Metricas generales + MRR + riesgo + crecimiento (cache 1min) |
 | GET | /dashboard/corte | todos | Lista para corte (cache 1min) |
+| GET | /dashboard/tendencia | todos | Tendencia cobranza ultimos 12 meses |
+| GET | /dashboard/mrr | todos | MRR teorico vs recaudado, desglose cable/internet |
+| GET | /dashboard/riesgo | todos | Clientes a exactamente umbralCorte meses de deuda |
+| GET | /dashboard/crecimiento | todos | Altas/bajas del mes, penetracion internet |
+| GET | /dashboard/zonas | todos | Distribucion morosidad por zona geografica |
 
 ## Export
 | Metodo | Ruta | Roles | Descripcion |

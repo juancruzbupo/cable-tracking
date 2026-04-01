@@ -69,7 +69,7 @@ src/
     ├── clients/         → CRUD clientes + calculateDebt por suscripcion + operaciones manuales (alta, baja, pagos, notas, historial, fiscal)
     ├── import/          → Import Excel (clientes/ramitos/facturas) con batch inserts, preserva pagos manuales
     ├── documents/       → GET /documents con filtros y paginacion
-    ├── dashboard/       → Metricas + lista corte (cache 1 min, invalidado al importar)
+    ├── dashboard/       → Metricas, corte, tendencia 12m, MRR, riesgo, crecimiento, zonas (cache 1 min)
     ├── export/          → Descargas Excel (corte, clientes, resumen)
     ├── plans/           → CRUD planes de servicio (nombre, tipo, precio)
     ├── promotions/      → CRUD promos (PORCENTAJE/MONTO_FIJO/PRECIO_FIJO/MESES_GRATIS) + asignacion

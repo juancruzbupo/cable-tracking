@@ -37,7 +37,7 @@ cable-tracking/
 │   │           ├── clients/           → ClientsService + ClientsOperationsService + Controller
 │   │           ├── documents/         → DocumentsController con Prisma directo
 │   │           ├── import/            → ImportService (Excel parsing + batch insert)
-│   │           ├── dashboard/         → DashboardService (cache 1 min, invalidacion)
+│   │           ├── dashboard/         → DashboardService (metricas, corte, tendencia, MRR, riesgo, crecimiento, zonas — cache 1 min)
 │   │           ├── export/            → ExportService (ExcelJS)
 │   │           ├── plans/             → PlansService CRUD
 │   │           ├── promotions/        → PromotionsService CRUD + asignacion
