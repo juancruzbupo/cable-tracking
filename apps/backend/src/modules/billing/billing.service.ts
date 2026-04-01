@@ -23,7 +23,8 @@ export class BillingService {
       include: {
         subscriptions: {
           include: {
-            plan: true,
+            plan: { include: { promotions: { where: { activa: true, tipo: 'MESES_GRATIS' as const } } } },
+            clientPromotions: { include: { promotion: { select: { id: true, nombre: true, tipo: true, valor: true, fechaInicio: true, fechaFin: true } } } },
             paymentPeriods: { select: { year: true, month: true } },
           },
         },
@@ -48,7 +49,11 @@ export class BillingService {
       const planName = sub.plan?.nombre || 'Sin plan';
       const precio = sub.plan ? Number(sub.plan.precio) : 0;
       const pagado = sub.paymentPeriods.some((p) => p.year === year && p.month === month);
-      const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods);
+      const promosGratis = [
+        ...(sub.plan?.promotions || []).filter((p) => p.tipo === 'MESES_GRATIS').map((p) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo as any, valor: Number(p.valor), fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })),
+        ...(sub.clientPromotions || []).filter((cp) => cp.promotion.tipo === 'MESES_GRATIS').map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo as any, valor: Number(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
+      ];
+      const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, promosGratis);
 
       doc.fontSize(10).font('Helvetica-Bold').text(`${icon} — ${planName}`, { continued: true });
       doc.font('Helvetica').text(precio > 0 ? `  $${precio.toLocaleString()}` : '  $—');

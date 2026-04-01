@@ -350,8 +350,8 @@ model Comprobante {
   fechaVtoPago      DateTime?         @map("fecha_vto_pago") @db.Date
   formaPago         String?           @default("CONTADO") @map("forma_pago")
 
-  client            Client            @relation(fields: [clientId], references: [id])
-  subscription      Subscription?     @relation(fields: [subscriptionId], references: [id])
+  client            Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscription      Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   paymentPeriod     PaymentPeriod?    @relation(fields: [paymentPeriodId], references: [id])
 
   createdAt         DateTime          @default(now()) @map("created_at")

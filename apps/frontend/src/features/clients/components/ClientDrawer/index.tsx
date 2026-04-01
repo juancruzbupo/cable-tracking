@@ -2,18 +2,20 @@ import { useState } from 'react';
 import {
   Card, Select, Tag, Space, Typography, Button,
   message, Descriptions, Timeline, Badge, Divider,
-  DatePicker, Modal, Collapse, Input, Spin,
+  DatePicker, Modal, Collapse, Input, Spin, List,
 } from 'antd';
 import {
   WarningOutlined, CheckCircleFilled, CloseCircleFilled, FileTextOutlined,
   StopOutlined, PlayCircleOutlined, DeleteOutlined,
-  HistoryOutlined, MessageOutlined,
+  HistoryOutlined, MessageOutlined, ThunderboltOutlined,
+  IdcardOutlined, ToolOutlined, ExclamationCircleOutlined, WhatsAppOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/es';
-import { clientsApi, getErrorMessage } from '../../../../services/api';
+import { clientsApi, promotionsApi, equipmentApi, ticketsApi, getErrorMessage } from '../../../../services/api';
 import { useAuth } from '../../../../context/AuthContext';
+import { generarMensajeDeuda, generarLinkWhatsApp } from '../../../../shared/utils/whatsapp';
 import type { ClientDetailResult, ClientNote, AuditLogEntry } from '../../../../types';
 
 dayjs.extend(relativeTime);
@@ -40,15 +42,24 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
 
   const [notes, setNotes] = useState<ClientNote[]>([]);
   const [history, setHistory] = useState<AuditLogEntry[]>([]);
+  const [promos, setPromos] = useState<any[]>([]);
+  const [clientEquipment, setClientEquipment] = useState<any[]>([]);
+  const [clientTickets, setClientTickets] = useState<any[]>([]);
   const [noteText, setNoteText] = useState('');
   const [payMonth, setPayMonth] = useState<dayjs.Dayjs | null>(null);
   const [paySubId, setPaySubId] = useState<string>('');
 
   const [notesLoading, setNotesLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [promosLoading, setPromosLoading] = useState(false);
+  const [equipLoading, setEquipLoading] = useState(false);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
 
   const loadNotes = async () => { setNotesLoading(true); try { setNotes(await clientsApi.getNotes(data.clientId)); } catch { message.error('Error al cargar notas'); } finally { setNotesLoading(false); } };
   const loadHistory = async () => { setHistoryLoading(true); try { setHistory(await clientsApi.getHistory(data.clientId)); } catch { message.error('Error al cargar historial'); } finally { setHistoryLoading(false); } };
+  const loadPromos = async () => { setPromosLoading(true); try { setPromos(await promotionsApi.getClientPromos(data.clientId)); } catch { message.error('Error al cargar promos'); } finally { setPromosLoading(false); } };
+  const loadEquipment = async () => { setEquipLoading(true); try { setClientEquipment(await equipmentApi.getClientEquipment(data.clientId)); } catch { message.error('Error al cargar equipos'); } finally { setEquipLoading(false); } };
+  const loadTickets = async () => { setTicketsLoading(true); try { setClientTickets(await ticketsApi.getClientTickets(data.clientId)); } catch { message.error('Error al cargar tickets'); } finally { setTicketsLoading(false); } };
 
   const handleDeactivate = () => {
     Modal.confirm({
@@ -104,6 +115,13 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
         )}
         {isAdmin && estado === 'BAJA' && (
           <Button type="primary" icon={<PlayCircleOutlined />} size="small" onClick={handleReactivate}>Reactivar</Button>
+        )}
+        {(data as any).telefono && data.cantidadDeuda > 0 && (
+          <Button icon={<WhatsAppOutlined />} size="small" style={{ color: '#25D366' }}
+            onClick={() => {
+              const msg = generarMensajeDeuda({ nombre: nombreNormalizado, deudaCable: data.deudaCable, deudaInternet: data.deudaInternet, cantidadDeuda: data.cantidadDeuda });
+              window.open(generarLinkWhatsApp((data as any).telefono, msg), '_blank');
+            }}>WhatsApp</Button>
         )}
       </Space>
 
@@ -206,6 +224,84 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
             </Spin>
           ),
           onExpand: (_e: any, expanded: boolean) => { if (expanded) loadHistory(); },
+        } as any,
+        {
+          key: 'promos', label: <><ThunderboltOutlined /> Promociones</>,
+          children: (
+            <Spin spinning={promosLoading}>
+              {promos.length > 0 ? (
+                <List size="small" dataSource={promos} renderItem={(p: any) => (
+                  <List.Item>
+                    <Space>
+                      <Tag color="purple">{p.promotion?.tipo || p.tipo}</Tag>
+                      <span>{p.promotion?.nombre || p.nombre}</span>
+                      {p.promotion?.fechaFin && <Typography.Text type="secondary">hasta {dayjs(p.promotion.fechaFin).format('DD/MM/YYYY')}</Typography.Text>}
+                    </Space>
+                  </List.Item>
+                )} />
+              ) : !promosLoading && <Typography.Text type="secondary">Sin promociones asignadas.</Typography.Text>}
+            </Spin>
+          ),
+          onExpand: (_e: any, expanded: boolean) => { if (expanded) loadPromos(); },
+        } as any,
+        {
+          key: 'fiscal', label: <><IdcardOutlined /> Datos Fiscales</>,
+          children: (
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="Tipo Doc">{(data as any).tipoDocumento || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Nro Doc">{(data as any).numeroDocFiscal || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Condición">{(data as any).condicionFiscal || 'CONSUMIDOR_FINAL'}</Descriptions.Item>
+              <Descriptions.Item label="Razón Social">{(data as any).razonSocial || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Teléfono">{(data as any).telefono || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Email">{(data as any).email || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Zona">{(data as any).zona || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Comprobante">
+                <Tag color={(data as any).tipoComprobante === 'FACTURA' ? 'blue' : 'default'}>{(data as any).tipoComprobante || 'RAMITO'}</Tag>
+              </Descriptions.Item>
+            </Descriptions>
+          ),
+        } as any,
+        {
+          key: 'equipment', label: <><ToolOutlined /> Equipos</>,
+          children: (
+            <Spin spinning={equipLoading}>
+              {clientEquipment.length > 0 ? (
+                <List size="small" dataSource={clientEquipment} renderItem={(eq: any) => (
+                  <List.Item actions={canOperate && !eq.fechaRetiro ? [
+                    <Button size="small" type="link" danger onClick={async () => {
+                      try { await equipmentApi.retire(data.clientId, eq.id); message.success('Equipo retirado'); loadEquipment(); } catch (err) { message.error(getErrorMessage(err)); }
+                    }}>Retirar</Button>
+                  ] : undefined}>
+                    <List.Item.Meta
+                      title={<Space>{eq.equipment?.tipo} <Tag>{eq.equipment?.estado}</Tag> {eq.fechaRetiro && <Tag color="default">Retirado</Tag>}</Space>}
+                      description={<>{eq.equipment?.marca} {eq.equipment?.modelo} {eq.equipment?.numeroSerie && <Typography.Text code>{eq.equipment.numeroSerie}</Typography.Text>}</>}
+                    />
+                  </List.Item>
+                )} />
+              ) : !equipLoading && <Typography.Text type="secondary">Sin equipos asignados.</Typography.Text>}
+            </Spin>
+          ),
+          onExpand: (_e: any, expanded: boolean) => { if (expanded) loadEquipment(); },
+        } as any,
+        {
+          key: 'tickets', label: <><ExclamationCircleOutlined /> Tickets</>,
+          children: (
+            <Spin spinning={ticketsLoading}>
+              {clientTickets.length > 0 ? (
+                <List size="small" dataSource={clientTickets} renderItem={(t: any) => (
+                  <List.Item>
+                    <Space>
+                      <Tag color={t.estado === 'ABIERTO' ? 'red' : 'green'}>{t.estado}</Tag>
+                      <Tag>{t.tipo}</Tag>
+                      <span>{t.descripcion || '—'}</span>
+                      <Typography.Text type="secondary">{dayjs(t.createdAt).fromNow()}</Typography.Text>
+                    </Space>
+                  </List.Item>
+                )} />
+              ) : !ticketsLoading && <Typography.Text type="secondary">Sin tickets.</Typography.Text>}
+            </Spin>
+          ),
+          onExpand: (_e: any, expanded: boolean) => { if (expanded) loadTickets(); },
         } as any,
       ]} />
 

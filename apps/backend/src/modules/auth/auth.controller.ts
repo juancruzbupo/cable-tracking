@@ -5,6 +5,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { AuditService } from '../../common/audit/audit.service';
 import { Public } from './public.decorator';
 import { Roles } from './roles.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -18,6 +19,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly audit: AuditService,
   ) {}
 
   @Public()
@@ -53,8 +55,10 @@ export class AuthController {
 
   @Post('users')
   @Roles('ADMIN')
-  createUser(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  async createUser(@Body() dto: CreateUserDto, @Request() req: any) {
+    const user = await this.usersService.create(dto);
+    await this.audit.log(req.user.id, 'USER_CREATED', 'USER', user.id, { email: dto.email, role: dto.role });
+    return user;
   }
 
   @Patch('users/:id')
@@ -69,6 +73,8 @@ export class AuthController {
     }
     const user = await this.usersService.findById(id);
     if (!user) throw new NotFoundException('Usuario no encontrado');
-    return this.usersService.update(id, dto);
+    const updated = await this.usersService.update(id, dto);
+    await this.audit.log(req.user.id, 'USER_UPDATED', 'USER', id, dto);
+    return updated;
   }
 }

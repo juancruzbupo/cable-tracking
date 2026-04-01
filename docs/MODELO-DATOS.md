@@ -196,8 +196,11 @@ Configuracion de la empresa emisora (singleton).
 | condicionFiscal | String | "Responsable Inscripto" / "Monotributista" |
 | domicilioFiscal | String? | Domicilio fiscal |
 | puntoVenta | Int | Punto de venta AFIP |
+| ingresosBrutos | String? | Numero de ingresos brutos |
+| fechaInicioAct | String? | Fecha inicio actividades |
 | providerName | String | "mock" / "tusFacturas" / etc |
 | providerApiKey | String? | API key (no se retorna en GET) |
+| providerConfig | JSON? | Config adicional del proveedor |
 | iibb | String? | Ingresos brutos |
 | actividadCodigo | String? | Default: "613000" (Telecomunicaciones) |
 | localidad | String? | Localidad de la empresa |
