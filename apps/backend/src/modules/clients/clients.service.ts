@@ -1,41 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ClientStatus, Prisma, ServiceType } from '@prisma/client';
-import dayjs from 'dayjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { esMesCubiertoXPromo, type PromoData } from '../../common/utils/promotion-calculator.util';
+import { DebtService, SubscriptionDebt, ClientDebtInfo } from './debt.service';
 
-export interface SubscriptionDebt {
-  subscriptionId: string;
-  tipo: ServiceType;
-  fechaAlta: Date;
-  mesesObligatorios: string[];
-  mesesPagados: string[];
-  mesesAdeudados: string[];
-  mesesConPromoGratis: string[];
-  cantidadDeuda: number;
-  requiereCorte: boolean;
-}
-
-export interface ClientDebtInfo {
-  clientId: string;
-  codCli: string;
-  nombreNormalizado: string;
-  estado: ClientStatus;
-  fechaAlta: Date | null;
-  calle: string | null;
-  // Retrocompat — peor caso entre suscripciones
-  mesesObligatorios: string[];
-  mesesPagados: string[];
-  mesesAdeudados: string[];
-  cantidadDeuda: number;
-  requiereCorte: boolean;
-  // Desglose por servicio
-  subscriptions: SubscriptionDebt[];
-  requiereCorteCable: boolean;
-  requiereCorteInternet: boolean;
-  deudaCable: number;
-  deudaInternet: number;
-}
+// Re-export for backwards compatibility
+export { SubscriptionDebt, ClientDebtInfo } from './debt.service';
 
 export interface ClientDetailResult extends ClientDebtInfo {
   nombreOriginal: string;
@@ -76,7 +45,10 @@ const SUBS_INCLUDE = {
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly debtService: DebtService,
+  ) {}
 
   /**
    * Lista clientes con filtros y paginación.
@@ -226,144 +198,14 @@ export class ClientsService {
     };
   }
 
-  /**
-   * Calcula deuda de una suscripción individual.
-   */
-  calculateSubDebt(
-    subId: string,
-    tipo: ServiceType,
-    estado: ClientStatus,
-    fechaAlta: Date,
-    paidPeriods: Array<{ year: number; month: number }>,
-    promosGratis: PromoData[] = [],
-  ): SubscriptionDebt {
-    const result: SubscriptionDebt = {
-      subscriptionId: subId,
-      tipo,
-      fechaAlta,
-      mesesObligatorios: [],
-      mesesPagados: [],
-      mesesAdeudados: [],
-      mesesConPromoGratis: [],
-      cantidadDeuda: 0,
-      requiereCorte: false,
-    };
-
-    if (estado !== ClientStatus.ACTIVO) return result;
-
-    const now = dayjs();
-    const alta = dayjs(fechaAlta).startOf('month');
-
-    let endMonth = now.startOf('month');
-    if (now.date() <= 15) {
-      endMonth = endMonth.subtract(1, 'month');
-    }
-
-    const paidSet = new Set(
-      paidPeriods.map((p) => `${p.year}-${String(p.month).padStart(2, '0')}`),
-    );
-
-    // Meses cubiertos por promo MESES_GRATIS
-    let current = alta;
-    while (current.isBefore(endMonth, 'month') || current.isSame(endMonth, 'month')) {
-      const m = current.format('YYYY-MM');
-      result.mesesObligatorios.push(m);
-      if (esMesCubiertoXPromo(current.year(), current.month() + 1, promosGratis)) {
-        result.mesesConPromoGratis.push(m);
-      }
-      current = current.add(1, 'month');
-    }
-
-    // Meses cubiertos = pagados + promo gratis (sin duplicar)
-    const cubiertosSet = new Set([
-      ...paidPeriods.map((p) => `${p.year}-${String(p.month).padStart(2, '0')}`),
-      ...result.mesesConPromoGratis,
-    ]);
-
-    result.mesesPagados = result.mesesObligatorios.filter((m) => paidSet.has(m));
-
-    // Determinar inicio de deuda: último cubierto + 1 mes
-    let debtStartMonth: dayjs.Dayjs;
-    const allCubiertos = result.mesesObligatorios.filter((m) => cubiertosSet.has(m));
-    if (allCubiertos.length > 0) {
-      const lastCovered = allCubiertos[allCubiertos.length - 1];
-      debtStartMonth = dayjs(lastCovered + '-01').add(1, 'month');
-    } else {
-      debtStartMonth = alta;
-    }
-
-    result.mesesAdeudados = result.mesesObligatorios.filter((m) => {
-      const monthDate = dayjs(m + '-01');
-      return !cubiertosSet.has(m) && (monthDate.isAfter(debtStartMonth, 'month') || monthDate.isSame(debtStartMonth, 'month'));
-    });
-
-    result.cantidadDeuda = result.mesesAdeudados.length;
-    result.requiereCorte = result.cantidadDeuda > 1;
-    return result;
+  /** Proxy → DebtService.calculateSubDebt */
+  calculateSubDebt(...args: Parameters<DebtService['calculateSubDebt']>): SubscriptionDebt {
+    return this.debtService.calculateSubDebt(...args);
   }
 
-  /**
-   * ═══════════════════════════════════════════════════════════
-   * REGLA CENTRAL DE DEUDA — POR SUSCRIPCIÓN
-   * ═══════════════════════════════════════════════════════════
-   */
-  calculateDebt(
-    clientId: string,
-    codCli: string,
-    nombreNormalizado: string,
-    estado: ClientStatus,
-    fechaAlta: Date | null,
-    calle: string | null,
-    subscriptions: Array<{
-      id: string;
-      tipo: ServiceType;
-      fechaAlta: Date;
-      estado: ClientStatus;
-      paymentPeriods: Array<{ year: number; month: number }>;
-      plan?: { promotions?: Array<{ id: string; nombre: string; tipo: string; valor: any; fechaInicio: Date; fechaFin: Date }> } | null;
-      clientPromotions?: Array<{ promotion: { id: string; nombre: string; tipo: string; valor: any; fechaInicio: Date; fechaFin: Date } }>;
-    }>,
-  ): ClientDebtInfo {
-    const subDebts: SubscriptionDebt[] = subscriptions.map((sub) => {
-      // Collect MESES_GRATIS promos from plan + client
-      const promosGratis: PromoData[] = [
-        ...(sub.plan?.promotions || [])
-          .filter((p) => p.tipo === 'MESES_GRATIS')
-          .map((p) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo as any, valor: Number(p.valor), fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })),
-        ...(sub.clientPromotions || [])
-          .filter((cp) => cp.promotion.tipo === 'MESES_GRATIS')
-          .map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo as any, valor: Number(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
-      ];
-      return this.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, promosGratis);
-    });
-
-    const cableDebt = subDebts.find((s) => s.tipo === ServiceType.CABLE);
-    const internetDebt = subDebts.find((s) => s.tipo === ServiceType.INTERNET);
-
-    // Retrocompat: peor caso entre suscripciones
-    const allObligatorios = [...new Set(subDebts.flatMap((s) => s.mesesObligatorios))].sort();
-    const allPagados = [...new Set(subDebts.flatMap((s) => s.mesesPagados))].sort();
-    const allAdeudados = [...new Set(subDebts.flatMap((s) => s.mesesAdeudados))].sort();
-    const maxDeuda = Math.max(0, ...subDebts.map((s) => s.cantidadDeuda));
-
-    return {
-      clientId,
-      codCli,
-      nombreNormalizado,
-      estado,
-      fechaAlta,
-      calle,
-      mesesObligatorios: allObligatorios,
-      mesesPagados: allPagados,
-      mesesAdeudados: allAdeudados,
-      cantidadDeuda: maxDeuda,
-      requiereCorte: subDebts.some((s) => s.requiereCorte),
-      subscriptions: subDebts,
-      requiereCorteCable: cableDebt?.requiereCorte ?? false,
-      requiereCorteInternet: internetDebt?.requiereCorte ?? false,
-      deudaCable: cableDebt?.cantidadDeuda ?? 0,
-      deudaInternet: internetDebt?.cantidadDeuda ?? 0,
-    };
+  /** Proxy → DebtService.calculateClientDebt */
+  calculateDebt(...args: Parameters<DebtService['calculateClientDebt']>): ClientDebtInfo {
+    return this.debtService.calculateClientDebt(...args);
   }
 
   async getDebtStats() {

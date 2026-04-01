@@ -1,5 +1,7 @@
 import { Module, Controller, Get } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import { validate } from './config/env.validation';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AuditModule } from './common/audit/audit.module';
 import { ClientsModule } from './modules/clients/clients.module';
@@ -28,6 +30,7 @@ class HealthController {
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true, validate }),
     PrismaModule,
     AuditModule,
     ClientsModule,
