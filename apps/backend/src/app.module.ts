@@ -11,6 +11,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
+import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/roles.guard';
 import { Public } from './modules/auth/public.decorator';
@@ -37,6 +39,8 @@ class HealthController {
     PlansModule,
     SchedulerModule,
     BillingModule,
+    PromotionsModule,
+    FiscalModule,
   ],
   controllers: [HealthController],
   providers: [

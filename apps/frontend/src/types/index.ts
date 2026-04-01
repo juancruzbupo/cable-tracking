@@ -44,6 +44,7 @@ export interface SubscriptionDebt {
   mesesObligatorios: string[];
   mesesPagados: string[];
   mesesAdeudados: string[];
+  mesesConPromoGratis: string[];
   cantidadDeuda: number;
   requiereCorte: boolean;
 }
@@ -180,6 +181,26 @@ export interface DashboardMetrics {
     periodosRegistrados: number;
   };
   ultimasImportaciones: ImportLog[];
+}
+
+// ── Promotions ─────────────────────────────────────────────────────────────
+
+export type PromoType = 'PORCENTAJE' | 'MONTO_FIJO' | 'MESES_GRATIS' | 'PRECIO_FIJO';
+export type PromoScope = 'PLAN' | 'CLIENTE';
+
+export interface Promotion {
+  id: string;
+  nombre: string;
+  tipo: PromoType;
+  valor: number;
+  scope: PromoScope;
+  fechaInicio: string;
+  fechaFin: string;
+  activa: boolean;
+  descripcion: string | null;
+  planId: string | null;
+  plan?: { nombre: string; tipo: string } | null;
+  _count?: { clientPromotions: number };
 }
 
 // ── Plans ──────────────────────────────────────────────────────────────────

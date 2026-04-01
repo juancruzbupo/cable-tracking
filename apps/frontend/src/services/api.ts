@@ -10,6 +10,7 @@ import type {
   ClientNote,
   AuditLogEntry,
   ServicePlan,
+  Promotion,
   PaginatedResponse,
   ClientStatus,
   DebtStatus,
@@ -289,6 +290,45 @@ export const plansApi = {
   },
 };
 
+// ── Promotions ────────────────────────────────────────────────────────────
+
+export const promotionsApi = {
+  getAll: async (params?: Record<string, string>): Promise<Promotion[]> => {
+    const { data } = await api.get('/promotions', { params });
+    return data;
+  },
+  getActive: async (): Promise<Promotion[]> => {
+    const { data } = await api.get('/promotions/active');
+    return data;
+  },
+  getOne: async (id: string): Promise<Promotion> => {
+    const { data } = await api.get(`/promotions/${id}`);
+    return data;
+  },
+  create: async (promo: any): Promise<Promotion> => {
+    const { data } = await api.post('/promotions', promo);
+    return data;
+  },
+  update: async (id: string, updates: any): Promise<Promotion> => {
+    const { data } = await api.patch(`/promotions/${id}`, updates);
+    return data;
+  },
+  remove: async (id: string) => {
+    await api.delete(`/promotions/${id}`);
+  },
+  assignToSub: async (clientId: string, subId: string, promotionId: string) => {
+    const { data } = await api.post(`/clients/${clientId}/subscriptions/${subId}/promotions`, { promotionId });
+    return data;
+  },
+  removeFromSub: async (clientId: string, subId: string, promoId: string) => {
+    await api.delete(`/clients/${clientId}/subscriptions/${subId}/promotions/${promoId}`);
+  },
+  getClientPromos: async (clientId: string) => {
+    const { data } = await api.get(`/clients/${clientId}/promotions`);
+    return data;
+  },
+};
+
 // ── Billing ───────────────────────────────────────────────────────────────
 
 export const billingApi = {
@@ -313,6 +353,20 @@ export const billingApi = {
   },
 
   downloadCortePdf: () => downloadFile('/billing/corte/print', 'corte.pdf'),
+};
+
+// ── Fiscal ────────────────────────────────────────────────────────────────
+
+export const fiscalApi = {
+  getConfig: async () => { const { data } = await api.get('/fiscal/config'); return data; },
+  updateConfig: async (updates: any) => { const { data } = await api.patch('/fiscal/config', updates); return data; },
+  getComprobantes: async (params?: any) => { const { data } = await api.get('/fiscal/comprobantes', { params }); return data; },
+  getComprobante: async (id: string) => { const { data } = await api.get(`/fiscal/comprobantes/${id}`); return data; },
+  downloadPdf: (id: string) => downloadFile(`/fiscal/comprobantes/${id}/pdf`, `comprobante_${id}.pdf`),
+  emitirPorPago: async (ppId: string) => { const { data } = await api.post(`/fiscal/comprobantes/pago/${ppId}`); return data; },
+  emitirBatch: async (month: number, year: number) => { const { data } = await api.post('/fiscal/comprobantes/batch', { month, year }); return data; },
+  anular: async (id: string) => { const { data } = await api.patch(`/fiscal/comprobantes/${id}/anular`); return data; },
+  updateClientFiscal: async (clientId: string, data: any) => { const { data: res } = await api.patch(`/clients/${clientId}/fiscal`, data); return res; },
 };
 
 export function getErrorMessage(err: unknown): string {

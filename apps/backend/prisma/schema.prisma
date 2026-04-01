@@ -22,6 +22,46 @@ enum ServiceType {
   INTERNET
 }
 
+enum PromoType {
+  PORCENTAJE
+  MONTO_FIJO
+  MESES_GRATIS
+  PRECIO_FIJO
+}
+
+enum PromoScope {
+  PLAN
+  CLIENTE
+}
+
+enum TipoDocumento {
+  CUIT
+  CUIL
+  DNI
+  CONSUMIDOR_FINAL
+}
+
+enum CondicionFiscal {
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTISTA
+  CONSUMIDOR_FINAL
+  EXENTO
+}
+
+enum TipoComprobante {
+  FACTURA_A
+  FACTURA_B
+  FACTURA_C
+  RECIBO_X
+}
+
+enum EstadoComprobante {
+  PENDIENTE
+  EMITIDO
+  ANULADO
+  ERROR
+}
+
 enum Role {
   ADMIN
   OPERADOR
@@ -53,10 +93,19 @@ model Client {
   estado             ClientStatus   @default(ACTIVO)
   calle              String?
 
+  // Datos fiscales
+  tipoDocumento      TipoDocumento?    @map("tipo_documento")
+  numeroDocFiscal    String?           @map("numero_doc_fiscal")
+  condicionFiscal    CondicionFiscal   @default(CONSUMIDOR_FINAL) @map("condicion_fiscal")
+  razonSocial        String?           @map("razon_social")
+  telefono           String?
+  email              String?
+
   subscriptions      Subscription[]
   documents          Document[]
   paymentPeriods     PaymentPeriod[]
   notes              ClientNote[]
+  comprobantes       Comprobante[]
 
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
@@ -75,6 +124,7 @@ model ServicePlan {
   activo      Boolean     @default(true)
 
   subscriptions Subscription[]
+  promotions    Promotion[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -93,10 +143,12 @@ model Subscription {
   requiereCorte   Boolean      @default(false) @map("requiere_corte")
   ultimoCalculo   DateTime?    @map("ultimo_calculo")
 
-  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  plan           ServicePlan?    @relation(fields: [planId], references: [id], onDelete: SetNull)
-  documents      Document[]
-  paymentPeriods PaymentPeriod[]
+  client           Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan             ServicePlan?      @relation(fields: [planId], references: [id], onDelete: SetNull)
+  documents        Document[]
+  paymentPeriods   PaymentPeriod[]
+  clientPromotions ClientPromotion[]
+  comprobantes     Comprobante[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -203,4 +255,103 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model Promotion {
+  id          String     @id @default(uuid()) @db.Uuid
+  nombre      String
+  tipo        PromoType
+  valor       Decimal    @db.Decimal(10, 2)
+  scope       PromoScope
+  fechaInicio DateTime   @map("fecha_inicio") @db.Date
+  fechaFin    DateTime   @map("fecha_fin") @db.Date
+  activa      Boolean    @default(true)
+  descripcion String?
+  planId      String?    @map("plan_id") @db.Uuid
+
+  plan             ServicePlan?      @relation(fields: [planId], references: [id])
+  clientPromotions ClientPromotion[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([planId])
+  @@index([fechaInicio, fechaFin])
+  @@map("promotions")
+}
+
+model ClientPromotion {
+  id             String       @id @default(uuid()) @db.Uuid
+  promotionId    String       @map("promotion_id") @db.Uuid
+  subscriptionId String       @map("subscription_id") @db.Uuid
+  assignedBy     String       @map("assigned_by")
+
+  promotion    Promotion    @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([promotionId, subscriptionId])
+  @@index([subscriptionId])
+  @@map("client_promotions")
+}
+
+model Comprobante {
+  id                String            @id @default(uuid()) @db.Uuid
+  clientId          String            @map("client_id") @db.Uuid
+  subscriptionId    String?           @map("subscription_id") @db.Uuid
+  paymentPeriodId   String?           @map("payment_period_id")
+
+  tipo              TipoComprobante
+  numero            Int
+  puntoVenta        Int               @default(1) @map("punto_venta")
+  fecha             DateTime          @db.Date
+
+  emisorCuit        String            @map("emisor_cuit")
+  emisorRazonSocial String            @map("emisor_razon_social")
+  emisorCondicion   String            @map("emisor_condicion")
+  receptorDoc       String            @map("receptor_doc")
+  receptorNombre    String            @map("receptor_nombre")
+  receptorCondicion String            @map("receptor_condicion")
+
+  subtotal          Decimal           @db.Decimal(10, 2)
+  descuento         Decimal           @db.Decimal(10, 2) @default(0)
+  iva               Decimal           @db.Decimal(10, 2) @default(0)
+  total             Decimal           @db.Decimal(10, 2)
+
+  detalle           Json
+  estado            EstadoComprobante @default(PENDIENTE)
+  cae               String?
+  caeFechaVto       DateTime?         @map("cae_fecha_vto")
+  providerResponse  Json?             @map("provider_response")
+
+  client            Client            @relation(fields: [clientId], references: [id])
+  subscription      Subscription?     @relation(fields: [subscriptionId], references: [id])
+
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@index([clientId])
+  @@index([estado])
+  @@index([fecha])
+  @@map("comprobantes")
+}
+
+model EmpresaConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  cuit            String
+  razonSocial     String   @map("razon_social")
+  condicionFiscal String   @map("condicion_fiscal")
+  domicilioFiscal String?  @map("domicilio_fiscal")
+  ingresosBrutos  String?  @map("ingresos_brutos")
+  fechaInicioAct  String?  @map("fecha_inicio_act")
+  puntoVenta      Int      @default(1) @map("punto_venta")
+  providerName    String   @default("mock") @map("provider_name")
+  providerApiKey  String?  @map("provider_api_key")
+  providerConfig  Json?    @map("provider_config")
+
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  updatedBy       String?  @map("updated_by")
+
+  @@map("empresa_config")
 }

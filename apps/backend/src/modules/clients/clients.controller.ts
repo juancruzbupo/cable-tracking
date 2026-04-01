@@ -5,6 +5,8 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { ClientsOperationsService } from './clients-operations.service';
+import { PromotionsService } from '../promotions/promotions.service';
+import { FiscalService } from '../fiscal/fiscal.service';
 import { FindClientsDto } from './dto/find-clients.dto';
 import { FindClientDetailDto } from './dto/find-client-detail.dto';
 import { Roles } from '../auth/roles.decorator';
@@ -15,6 +17,8 @@ export class ClientsController {
   constructor(
     private readonly clientsService: ClientsService,
     private readonly ops: ClientsOperationsService,
+    private readonly promoService: PromotionsService,
+    private readonly fiscalService: FiscalService,
   ) {}
 
   @Get()
@@ -115,5 +119,30 @@ export class ClientsController {
   @Roles('ADMIN', 'OPERADOR')
   getHistory(@Param('id') id: string) {
     return this.ops.getHistory(id);
+  }
+
+  // ── Datos fiscales ──────────────────────────────────────
+  @Patch(':id/fiscal')
+  @Roles('ADMIN', 'OPERADOR')
+  updateFiscal(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+    return this.fiscalService.updateClientFiscal(req.user.id, id, body);
+  }
+
+  // ── Promociones ────────────────────────────────────────
+  @Get(':id/promotions')
+  getClientPromotions(@Param('id') id: string) {
+    return this.promoService.getClientPromotions(id);
+  }
+
+  @Post(':id/subscriptions/:subId/promotions')
+  @Roles('ADMIN', 'OPERADOR')
+  assignPromo(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body('promotionId') promotionId: string) {
+    return this.promoService.assignToSubscription(req.user.id, id, subId, promotionId);
+  }
+
+  @Delete(':id/subscriptions/:subId/promotions/:promoId')
+  @Roles('ADMIN')
+  removePromo(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Param('promoId') promoId: string) {
+    return this.promoService.removeFromSubscription(req.user.id, id, subId, promoId);
   }
 }

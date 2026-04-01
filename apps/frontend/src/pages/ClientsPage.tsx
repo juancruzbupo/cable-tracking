@@ -351,7 +351,11 @@ function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {sub.mesesObligatorios.slice(-6).map((m) => {
                 const pagado = sub.mesesPagados.includes(m);
-                return (<Badge key={m} count={pagado ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 8 }} /> : <CloseCircleFilled style={{ color: '#f5222d', fontSize: 8 }} />} offset={[-4, 0]}><Tag color={pagado ? 'green' : 'red'} style={{ margin: 0, fontSize: 10 }}>{m}</Tag></Badge>);
+                const promoGratis = sub.mesesConPromoGratis?.includes(m);
+                const cubierto = pagado || promoGratis;
+                const color = promoGratis && !pagado ? 'purple' : pagado ? 'green' : 'red';
+                const icon = cubierto ? <CheckCircleFilled style={{ color: promoGratis && !pagado ? '#722ed1' : '#52c41a', fontSize: 8 }} /> : <CloseCircleFilled style={{ color: '#f5222d', fontSize: 8 }} />;
+                return (<Badge key={m} count={icon} offset={[-4, 0]}><Tag color={color} style={{ margin: 0, fontSize: 10 }}>{m}</Tag></Badge>);
               })}
             </div>
           </Card>
