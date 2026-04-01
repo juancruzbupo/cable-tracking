@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientStatus {
+  ACTIVO
+  BAJA
+}
+
+enum DocumentType {
+  RAMITO
+  FACTURA
+}
+
+model Client {
+  id                 String       @id @default(uuid()) @db.Uuid
+  codCli             String       @unique @map("cod_cli")
+  nombreOriginal     String       @map("nombre_original")
+  nombreNormalizado  String       @map("nombre_normalizado")
+  fechaAlta          DateTime?    @map("fecha_alta") @db.Date
+  estado             ClientStatus @default(ACTIVO)
+  calle              String?
+
+  documents          Document[]
+  paymentPeriods     PaymentPeriod[]
+
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  @@index([estado])
+  @@index([nombreNormalizado])
+  @@map("clients")
+}
+
+model Document {
+  id                  String       @id @default(uuid()) @db.Uuid
+  clientId            String       @map("client_id") @db.Uuid
+  codCli              String       @map("cod_cli")
+  tipo                DocumentType
+  fechaDocumento      DateTime?    @map("fecha_documento") @db.Date
+  numeroDocumento     String?      @map("numero_documento")
+  descripcionOriginal String?      @map("descripcion_original")
+
+  client              Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  paymentPeriods      PaymentPeriod[]
+
+  createdAt           DateTime     @default(now()) @map("created_at")
+
+  @@index([tipo])
+  @@index([clientId])
+  @@index([clientId, tipo])
+  @@index([codCli])
+  @@map("documents")
+}
+
+model PaymentPeriod {
+  id          String   @id @default(uuid()) @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  codCli      String   @map("cod_cli")
+  documentId  String   @map("document_id") @db.Uuid
+  periodo     DateTime @db.Date
+  year        Int
+  month       Int
+
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([clientId, periodo, documentId])
+  @@index([clientId, periodo])
+  @@index([clientId, year, month])
+  @@index([documentId])
+  @@map("payment_periods")
+}
+
+model ImportLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  tipo            String
+  fileName        String   @map("file_name")
+  totalRows       Int      @map("total_rows")
+  validRows       Int      @map("valid_rows")
+  invalidRows     Int      @map("invalid_rows")
+  newClients      Int      @default(0) @map("new_clients")
+  updatedClients  Int      @default(0) @map("updated_clients")
+  errors          Json?
+  status          String   @default("SUCCESS")
+  executedAt      DateTime @default(now()) @map("executed_at")
+
+  @@index([tipo])
+  @@index([executedAt])
+  @@map("import_logs")
+}

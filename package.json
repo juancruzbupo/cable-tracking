@@ -1,0 +1,27 @@
+{
+  "name": "cable-tracking",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter @cable/backend dev",
+    "dev:frontend": "pnpm --filter @cable/frontend dev",
+    "dev": "concurrently \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "build:backend": "pnpm --filter @cable/backend build",
+    "build:frontend": "pnpm --filter @cable/frontend build",
+    "db:migrate": "pnpm --filter @cable/backend prisma:migrate",
+    "db:generate": "pnpm --filter @cable/backend prisma:generate",
+    "db:seed": "pnpm --filter @cable/backend prisma:seed",
+    "validate": "pnpm --filter @cable/backend validate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "@nestjs/core"
+    ]
+  }
+}
