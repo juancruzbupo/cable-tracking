@@ -3,6 +3,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { TipoEmision } from '@prisma/client';
 import { ClientsService } from './clients.service';
 import { ClientsOperationsService } from './clients-operations.service';
 import { PromotionsService } from '../promotions/promotions.service';
@@ -138,7 +139,7 @@ export class ClientsController {
 
   @Patch(':id/comprobante-config')
   @Roles('ADMIN', 'OPERADOR')
-  updateComprobanteConfig(@Request() req: any, @Param('id') id: string, @Body('tipoComprobante') tipoComprobante: string) {
+  updateComprobanteConfig(@Request() req: any, @Param('id') id: string, @Body('tipoComprobante') tipoComprobante: TipoEmision) {
     return this.fiscalService.updateComprobanteConfig(req.user.id, id, tipoComprobante);
   }
 
