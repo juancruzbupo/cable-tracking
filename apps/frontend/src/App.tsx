@@ -3,7 +3,7 @@ import { Layout, Menu, Tag, Button, Spin, Dropdown } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, UploadOutlined, FileTextOutlined,
   ScissorOutlined, UserOutlined, LogoutOutlined, DollarOutlined, BarChartOutlined,
-  ThunderboltOutlined, SettingOutlined,
+  ThunderboltOutlined, SettingOutlined, ToolOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -20,6 +20,8 @@ import ReportesPage from './features/reports/ReportesPage';
 import PromotionsPage from './features/promotions/PromotionsPage';
 import ComprobantesPage from './features/fiscal/ComprobantesPage';
 import FiscalConfigPage from './features/fiscal/FiscalConfigPage';
+import EquipmentPage from './features/equipment/EquipmentPage';
+import TicketsPage from './features/tickets/TicketsPage';
 
 const { Sider, Content, Header } = Layout;
 
@@ -46,6 +48,8 @@ function AppLayout() {
     ...(hasRole('ADMIN') ? [{ key: '/plans', icon: <DollarOutlined />, label: 'Planes' }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/promotions', icon: <ThunderboltOutlined />, label: 'Promociones' }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/comprobantes', icon: <FileTextOutlined />, label: 'Comprobantes' }] : []),
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/equipment', icon: <ToolOutlined />, label: 'Equipos' }] : []),
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: 'Tickets' }] : []),
     ...(hasRole('ADMIN') ? [{ key: '/fiscal', icon: <SettingOutlined />, label: 'Config Fiscal' }] : []),
     ...(hasRole('ADMIN') ? [{ key: '/users', icon: <UserOutlined />, label: 'Usuarios' }] : []),
   ];
@@ -109,6 +113,8 @@ function AppLayout() {
               {hasRole('ADMIN') && <Route path="/plans" element={<PlansPage />} />}
               {hasRole('ADMIN', 'OPERADOR') && <Route path="/promotions" element={<PromotionsPage />} />}
               {hasRole('ADMIN', 'OPERADOR') && <Route path="/comprobantes" element={<ComprobantesPage />} />}
+              {hasRole('ADMIN', 'OPERADOR') && <Route path="/equipment" element={<EquipmentPage />} />}
+              {hasRole('ADMIN', 'OPERADOR') && <Route path="/tickets" element={<TicketsPage />} />}
               {hasRole('ADMIN') && <Route path="/fiscal" element={<FiscalConfigPage />} />}
               {hasRole('ADMIN') && <Route path="/users" element={<UsersPage />} />}
             </Routes>

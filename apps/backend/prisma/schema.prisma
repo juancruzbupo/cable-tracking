@@ -117,6 +117,8 @@ model Client {
   paymentPeriods     PaymentPeriod[]
   notes              ClientNote[]
   comprobantes       Comprobante[]
+  equipmentAssignments EquipmentAssignment[]
+  tickets            Ticket[]
 
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
@@ -395,4 +397,85 @@ model EmpresaConfig {
   updatedBy       String?  @map("updated_by")
 
   @@map("empresa_config")
+}
+
+// ── Equipment ──────────────────────────────────────────────
+
+enum EquipmentStatus {
+  EN_DEPOSITO
+  ASIGNADO
+  EN_REPARACION
+  DE_BAJA
+}
+
+model Equipment {
+  id          String          @id @default(uuid()) @db.Uuid
+  tipo        String
+  marca       String?
+  modelo      String?
+  numeroSerie String?         @unique @map("numero_serie")
+  estado      EquipmentStatus @default(EN_DEPOSITO)
+  notas       String?
+
+  assignments EquipmentAssignment[]
+
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([tipo, estado])
+  @@map("equipment")
+}
+
+model EquipmentAssignment {
+  id               String     @id @default(uuid()) @db.Uuid
+  equipmentId      String     @map("equipment_id") @db.Uuid
+  clientId         String     @map("client_id") @db.Uuid
+  fechaInstalacion DateTime   @default(now()) @map("fecha_instalacion")
+  fechaRetiro      DateTime?  @map("fecha_retiro")
+  notas            String?
+
+  equipment        Equipment  @relation(fields: [equipmentId], references: [id])
+  client           Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@index([equipmentId])
+  @@map("equipment_assignments")
+}
+
+// ── Tickets ────────────────────────────────────────────────
+
+enum TicketStatus {
+  ABIERTO
+  RESUELTO
+}
+
+enum TicketType {
+  SIN_SENIAL
+  LENTITUD_INTERNET
+  RECONEXION
+  INSTALACION
+  CAMBIO_EQUIPO
+  OTRO
+}
+
+model Ticket {
+  id          String       @id @default(uuid()) @db.Uuid
+  clientId    String       @map("client_id") @db.Uuid
+  tipo        TicketType
+  descripcion String?
+  estado      TicketStatus @default(ABIERTO)
+  notas       String?
+  creadoPor   String       @map("creado_por")
+  resuelto    DateTime?
+
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([clientId, estado])
+  @@index([estado, createdAt])
+  @@map("tickets")
 }

@@ -7,6 +7,8 @@ import { ClientsService } from './clients.service';
 import { ClientsOperationsService } from './clients-operations.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { FiscalService } from '../fiscal/fiscal.service';
+import { EquipmentService } from '../equipment/equipment.service';
+import { TicketsService } from '../tickets/tickets.service';
 import { FindClientsDto } from './dto/find-clients.dto';
 import { FindClientDetailDto } from './dto/find-client-detail.dto';
 import { Roles } from '../auth/roles.decorator';
@@ -19,6 +21,8 @@ export class ClientsController {
     private readonly ops: ClientsOperationsService,
     private readonly promoService: PromotionsService,
     private readonly fiscalService: FiscalService,
+    private readonly equipmentService: EquipmentService,
+    private readonly ticketsService: TicketsService,
   ) {}
 
   @Get()
@@ -150,5 +154,35 @@ export class ClientsController {
   @Roles('ADMIN')
   removePromo(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Param('promoId') promoId: string) {
     return this.promoService.removeFromSubscription(req.user.id, id, subId, promoId);
+  }
+
+  // ── Equipos ──────────────────────────────────────────────
+  @Get(':id/equipment')
+  getClientEquipment(@Param('id') id: string) {
+    return this.equipmentService.getClientEquipment(id);
+  }
+
+  @Post(':id/equipment')
+  @Roles('ADMIN', 'OPERADOR')
+  assignEquipment(@Request() req: any, @Param('id') id: string, @Body() body: { equipmentId: string; notas?: string }) {
+    return this.equipmentService.assignToClient(req.user.id, id, body.equipmentId, body.notas);
+  }
+
+  @Patch(':id/equipment/:assignmentId/retirar')
+  @Roles('ADMIN', 'OPERADOR')
+  retireEquipment(@Request() req: any, @Param('id') id: string, @Param('assignmentId') aId: string, @Body('notas') notas?: string) {
+    return this.equipmentService.retire(req.user.id, id, aId, notas);
+  }
+
+  // ── Tickets ──────────────────────────────────────────────
+  @Get(':id/tickets')
+  getClientTickets(@Param('id') id: string) {
+    return this.ticketsService.getClientTickets(id);
+  }
+
+  @Post(':id/tickets')
+  @Roles('ADMIN', 'OPERADOR')
+  createTicket(@Request() req: any, @Param('id') id: string, @Body() body: { tipo: string; descripcion?: string }) {
+    return this.ticketsService.create(req.user.id, id, body.tipo as any, body.descripcion);
   }
 }
