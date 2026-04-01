@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Card, Select, Tag, Space, Typography, Button,
   message, Descriptions, Timeline, Badge, Divider,
-  DatePicker, Modal, Collapse, Input,
+  DatePicker, Modal, Collapse, Input, Spin,
 } from 'antd';
 import {
   WarningOutlined, CheckCircleFilled, CloseCircleFilled, FileTextOutlined,
@@ -44,8 +44,11 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
   const [payMonth, setPayMonth] = useState<dayjs.Dayjs | null>(null);
   const [paySubId, setPaySubId] = useState<string>('');
 
-  const loadNotes = async () => { try { setNotes(await clientsApi.getNotes(data.clientId)); } catch {} };
-  const loadHistory = async () => { try { setHistory(await clientsApi.getHistory(data.clientId)); } catch {} };
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadNotes = async () => { setNotesLoading(true); try { setNotes(await clientsApi.getNotes(data.clientId)); } catch { message.error('Error al cargar notas'); } finally { setNotesLoading(false); } };
+  const loadHistory = async () => { setHistoryLoading(true); try { setHistory(await clientsApi.getHistory(data.clientId)); } catch { message.error('Error al cargar historial'); } finally { setHistoryLoading(false); } };
 
   const handleDeactivate = () => {
     Modal.confirm({
@@ -163,6 +166,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
         {
           key: 'notes', label: <><MessageOutlined /> Notas</>,
           children: (
+            <Spin spinning={notesLoading}>
             <div>
               {canOperate && (
                 <Space.Compact style={{ width: '100%', marginBottom: 8 }}>
@@ -180,14 +184,16 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
                   <div style={{ fontSize: 13 }}>{n.content}</div>
                 </div>
               ))}
-              {notes.length === 0 && <Typography.Text type="secondary">Sin notas.</Typography.Text>}
+              {notes.length === 0 && !notesLoading && <Typography.Text type="secondary">Sin notas.</Typography.Text>}
             </div>
+            </Spin>
           ),
           onExpand: (_e: any, expanded: boolean) => { if (expanded) loadNotes(); },
         } as any,
         {
           key: 'history', label: <><HistoryOutlined /> Historial</>,
           children: (
+            <Spin spinning={historyLoading}>
             <Timeline items={history.map((h) => ({
               key: h.id,
               children: (
@@ -197,6 +203,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
                 </div>
               ),
             }))} />
+            </Spin>
           ),
           onExpand: (_e: any, expanded: boolean) => { if (expanded) loadHistory(); },
         } as any,

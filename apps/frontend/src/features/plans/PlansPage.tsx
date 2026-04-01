@@ -47,7 +47,7 @@ export default function PlansPage() {
           { title: 'Activo', dataIndex: 'activo', width: 80, render: (v: boolean, r: ServicePlan) => (
             <Switch checked={v} size="small" onChange={(checked) => handleUpdate(r.id, { activo: checked })} />
           )},
-          { title: 'Precio', width: 140, render: (_: unknown, r: ServicePlan) => (
+          { title: 'Editar precio', width: 140, render: (_: unknown, r: ServicePlan) => (
             <InputNumber size="small" value={Number(r.precio)} min={0} step={1000} style={{ width: 120 }}
               onBlur={(e) => { const v = Number(e.target.value); if (!isNaN(v)) handleUpdate(r.id, { precio: v }); }} />
           )},

@@ -18,6 +18,10 @@ export class FiscalService {
     this.provider = this.mockProvider;
   }
 
+  async getPaymentPeriod(id: string) {
+    return this.prisma.paymentPeriod.findUniqueOrThrow({ where: { id } });
+  }
+
   // ── Config ───────────────────────────────────────────────
 
   async getConfig() {

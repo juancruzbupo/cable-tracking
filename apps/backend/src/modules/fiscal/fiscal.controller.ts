@@ -37,7 +37,7 @@ export class FiscalController {
   @Post('comprobantes/pago/:paymentPeriodId')
   @Roles('ADMIN', 'OPERADOR')
   async emitirPorPago(@Request() req: any, @Param('paymentPeriodId') ppId: string) {
-    const pp = await this.fiscalService['prisma'].paymentPeriod.findUniqueOrThrow({ where: { id: ppId } });
+    const pp = await this.fiscalService.getPaymentPeriod(ppId);
     return this.fiscalService.emitirComprobanteParaPago(pp.clientId, pp.subscriptionId || '', ppId, req.user.id);
   }
 

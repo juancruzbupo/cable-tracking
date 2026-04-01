@@ -164,6 +164,8 @@ model Subscription {
 
   @@unique([clientId, tipo])
   @@index([clientId])
+  @@index([planId])
+  @@index([clientId, estado])
   @@map("subscriptions")
 }
 
