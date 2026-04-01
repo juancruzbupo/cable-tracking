@@ -106,6 +106,9 @@ model Client {
   localidad          String?
   provincia          String?           @default("Entre Ríos")
 
+  // Tipo de comprobante por cliente
+  tipoComprobante    String            @default("RAMITO") @map("tipo_comprobante")
+
   // Zona de cobranza (para organizar recorridos)
   zona               String?
 
@@ -382,6 +385,11 @@ model EmpresaConfig {
 
   // Zona default para alta de clientes
   zonaDefault     String?  @map("zona_default")
+
+  // Credenciales TusFacturas
+  tfUsertoken     String?  @map("tf_usertoken")
+  tfApikey        String?  @map("tf_apikey")
+  tfApitoken      String?  @map("tf_apitoken")
 
   updatedAt       DateTime @updatedAt @map("updated_at")
   updatedBy       String?  @map("updated_by")

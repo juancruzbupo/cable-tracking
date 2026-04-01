@@ -169,6 +169,10 @@ export const clientsApi = {
     const { data } = await api.get(`/clients/${clientId}/history`);
     return data;
   },
+  updateComprobanteConfig: async (clientId: string, body: { tipoComprobante: string }) => {
+    const { data } = await api.patch(`/clients/${clientId}/comprobante-config`, body);
+    return data;
+  },
 };
 
 // ── Documents ───────────────────────────────────────────────────────────────
@@ -364,6 +368,7 @@ export const billingApi = {
 
 export const fiscalApi = {
   getConfig: async () => { const { data } = await api.get('/fiscal/config'); return data; },
+  testConnection: async () => { const { data } = await api.get('/fiscal/config/test'); return data; },
   updateConfig: async (updates: any) => { const { data } = await api.patch('/fiscal/config', updates); return data; },
   getComprobantes: async (params?: any) => { const { data } = await api.get('/fiscal/comprobantes', { params }); return data; },
   getComprobante: async (id: string) => { const { data } = await api.get(`/fiscal/comprobantes/${id}`); return data; },

@@ -13,6 +13,10 @@ export class FiscalController {
   @Roles('ADMIN')
   getConfig() { return this.fiscalService.getConfig(); }
 
+  @Get('config/test')
+  @Roles('ADMIN')
+  testConnection() { return this.fiscalService.testConnection(); }
+
   @Patch('config')
   @Roles('ADMIN')
   updateConfig(@Request() req: any, @Body() body: any) { return this.fiscalService.updateConfig(req.user.id, body); }

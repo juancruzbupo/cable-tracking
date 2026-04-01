@@ -1,64 +1,72 @@
-# Guía de Proveedores Fiscales
+# Guia de Proveedores Fiscales
 
-## Cómo funciona
+## Como funciona
 
-El sistema usa un patrón Provider para la facturación fiscal. Actualmente funciona con un `MockFiscalProvider` que genera comprobantes internos sin valor fiscal (RECIBO_X). Cuando se elija un proveedor real, solo hay que implementar un nuevo adaptador.
+El sistema usa un patron Provider para la facturacion fiscal:
+- **MockFiscalProvider** (default): genera RECIBO_X internos sin valor fiscal
+- **TusFacturasProvider**: emite facturas electronicas reales via ARCA (ex-AFIP)
 
-## Implementar un nuevo provider
-
-1. Crear clase en `src/modules/fiscal/providers/` que implemente `IFiscalProvider`:
-
-```typescript
-export class TusFacturasProvider implements IFiscalProvider {
-  readonly name = 'tusFacturas';
-  async emitirComprobante(input: ComprobanteInput): Promise<ComprobanteOutput> { ... }
-  async anularComprobante(cae: string): Promise<boolean> { ... }
-  async getUltimoNumero(puntoVenta: number, tipo: TipoComprobante): Promise<number> { ... }
-}
-```
-
-2. Registrar en `FiscalModule` como provider
-3. En `FiscalService`, seleccionar el provider según `EmpresaConfig.providerName`
-4. Cambiar `providerName` a `"tusFacturas"` en la config de la empresa
+El campo `Client.tipoComprobante` determina si un cliente recibe factura fiscal:
+- `RAMITO` (default): solo registra el pago, sin comprobante fiscal
+- `FACTURA`: al registrar pago se emite factura electronica automaticamente
 
 ## Checklist para conectar TusFacturas
 
-- [ ] Crear cuenta en tusFacturas.app
-- [ ] Obtener API key de producción
-- [ ] Configurar CUIT y punto de venta en su panel
-- [ ] Hacer prueba en ambiente de homologación
-- [ ] Implementar `TusFacturasProvider`
-- [ ] Cambiar providerName a "tusFacturas" en EmpresaConfig
-- [ ] Verificar primer comprobante en AFIP
+### Paso 1 — Preparar datos de la empresa
+- [ ] CUIT de la empresa
+- [ ] Razon social (exacta como figura en ARCA)
+- [ ] Condicion fiscal (Responsable Inscripto o Monotributista)
+- [ ] Punto de venta habilitado en ARCA
 
-## Mapeo de campos AFIP
+### Paso 2 — Crear cuenta en TusFacturas
+- [ ] Registrarse en tusfacturas.app (1 mes gratis)
+- [ ] Ir a Menu → Mi espacio de trabajo → Puntos de venta
+- [ ] Configurar el punto de venta con el CUIT de la empresa
+- [ ] Obtener las 3 credenciales: usertoken, apikey, apitoken
 
-| Campo sistema | Campo AFIP |
-|---|---|
-| TipoComprobante.FACTURA_A | CbteTipo = 1 |
-| TipoComprobante.FACTURA_B | CbteTipo = 6 |
-| TipoComprobante.FACTURA_C | CbteTipo = 11 |
-| puntoVenta | PtoVta |
-| numero | CbteDesde / CbteHasta |
-| emisorCuit | Auth.Cuit |
-| receptorDoc | DocNro |
-| total | ImpTotal |
-| iva | ImpIVA |
+### Paso 3 — Configurar en la app
+- [ ] Ir a Configuracion Fiscal en la app
+- [ ] Cambiar proveedor a "TusFacturas"
+- [ ] Cargar usertoken, apikey y apitoken
+- [ ] Click en "Probar conexion" → debe mostrar exito
 
-## Campos ARCA obligatorios (servicios)
+### Paso 4 — Activar por cliente
+- [ ] Abrir el drawer de cada cliente que quiera factura oficial
+- [ ] Verificar que tenga CUIT/DNI cargado en datos fiscales
+- [ ] Usar PATCH /clients/:id/comprobante-config para cambiar a FACTURA
+
+## Implementar un nuevo provider
+
+1. Crear clase que implemente `IFiscalProvider` en `src/modules/fiscal/providers/`
+2. Implementar: `emitirComprobante()`, `anularComprobante()`, `getUltimoNumero()`
+3. En `FiscalService.getProvider()`, agregar case para el nuevo provider
+4. Cambiar `providerName` en EmpresaConfig
+
+## Mapeo de campos ARCA
 
 | Campo sistema | Campo ARCA | Nota |
 |---|---|---|
+| TipoComprobante.FACTURA_A | CbteTipo = 1 | RI → RI |
+| TipoComprobante.FACTURA_B | CbteTipo = 6 | RI → CF/Mono |
+| TipoComprobante.FACTURA_C | CbteTipo = 11 | Mono → cualquiera |
 | concepto | Concepto | Siempre 2 (Servicios) |
-| fechaServDesde | FchServDesde | Primer dia del periodo facturado |
-| fechaServHasta | FchServHasta | Ultimo dia del periodo facturado |
+| fechaServDesde | FchServDesde | Primer dia del periodo |
+| fechaServHasta | FchServHasta | Ultimo dia del periodo |
 | fechaVtoPago | FchVtoPago | Fecha limite de pago |
-| formaPago | - | CONTADO / CUENTA_CORRIENTE |
 
-Estos campos son obligatorios en ARCA cuando `concepto = 2` (servicios).
-El MockProvider los ignora pero deben estar completos para el provider real.
+## Campos ARCA obligatorios (servicios)
+
+Cuando `concepto = 2` (servicios), ARCA exige:
+- fechaServDesde y fechaServHasta (periodo facturado)
+- fechaVtoPago (fecha limite de pago)
+Estos campos se completan automaticamente desde el PaymentPeriod.
+
+## Anulaciones
+
+TusFacturas no tiene endpoint de anulacion de CAE. Para anular fiscalmente se debe emitir Nota de Credito manualmente en tusfacturas.app.
+El sistema marca el comprobante como ANULADO internamente.
 
 ## Seguridad
 
-- `providerApiKey` NO se retorna en GET /api/fiscal/config (se muestra ofuscada)
-- En producción, usar variable de entorno en vez de guardarla en la DB
+- Credenciales TF NO se retornan en GET /fiscal/config (solo flags booleanos)
+- En produccion usar variables de entorno en vez de la DB

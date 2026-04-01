@@ -128,6 +128,12 @@ export class ClientsController {
     return this.fiscalService.updateClientFiscal(req.user.id, id, body);
   }
 
+  @Patch(':id/comprobante-config')
+  @Roles('ADMIN', 'OPERADOR')
+  updateComprobanteConfig(@Request() req: any, @Param('id') id: string, @Body('tipoComprobante') tipoComprobante: string) {
+    return this.fiscalService.updateComprobanteConfig(req.user.id, id, tipoComprobante);
+  }
+
   // ── Promociones ────────────────────────────────────────
   @Get(':id/promotions')
   getClientPromotions(@Param('id') id: string) {

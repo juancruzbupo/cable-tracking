@@ -3,19 +3,29 @@ import { TipoComprobante, CondicionFiscal, EstadoComprobante } from '@prisma/cli
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { MockFiscalProvider } from './providers/mock-fiscal.provider';
+import { TusFacturasProvider } from './providers/tusFacturas.provider';
 import type { IFiscalProvider, ComprobanteInput } from './providers/fiscal-provider.interface';
 
 @Injectable()
 export class FiscalService {
   private readonly logger = new Logger(FiscalService.name);
-  private provider: IFiscalProvider;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly mockProvider: MockFiscalProvider,
-  ) {
-    this.provider = this.mockProvider;
+  ) {}
+
+  private async getProvider(): Promise<IFiscalProvider> {
+    const config = await this.prisma.empresaConfig.findFirst();
+    if (!config) return this.mockProvider;
+    if (config.providerName === 'tusFacturas') {
+      if (!config.tfUsertoken || !config.tfApikey || !config.tfApitoken) {
+        throw new BadRequestException('Credenciales de TusFacturas incompletas');
+      }
+      return new TusFacturasProvider(config.tfUsertoken, config.tfApikey, config.tfApitoken, config.puntoVenta);
+    }
+    return this.mockProvider;
   }
 
   async getPaymentPeriod(id: string) {
@@ -24,10 +34,43 @@ export class FiscalService {
 
   // ── Config ───────────────────────────────────────────────
 
+  async testConnection(): Promise<{ ok: boolean; mensaje: string }> {
+    try {
+      const provider = await this.getProvider();
+      if (provider.name === 'mock') return { ok: true, mensaje: 'Modo interno (mock) activo.' };
+      await provider.getUltimoNumero(1, 'FACTURA_B' as any);
+      return { ok: true, mensaje: 'Conexión con TusFacturas exitosa.' };
+    } catch (error: any) {
+      return { ok: false, mensaje: `Error: ${error.message}` };
+    }
+  }
+
+  async updateComprobanteConfig(userId: string, clientId: string, tipoComprobante: string) {
+    const client = await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+    if (tipoComprobante === 'FACTURA') {
+      if (!client.numeroDocFiscal) throw new BadRequestException('El cliente no tiene CUIT/DNI cargado. Completá los datos fiscales primero.');
+    }
+    const before = client.tipoComprobante;
+    const updated = await this.prisma.client.update({
+      where: { id: clientId },
+      data: { tipoComprobante },
+      select: { id: true, tipoComprobante: true },
+    });
+    await this.audit.log(userId, 'CLIENT_COMPROBANTE_CONFIG_UPDATED', 'CLIENT', clientId, { before, after: tipoComprobante });
+    return updated;
+  }
+
   async getConfig() {
     const config = await this.prisma.empresaConfig.findFirst();
     if (!config) return null;
-    return { ...config, providerApiKey: config.providerApiKey ? '****' + config.providerApiKey.slice(-4) : null };
+    return {
+      ...config,
+      providerApiKey: config.providerApiKey ? '****' : null,
+      tfUsertoken: undefined, tfApikey: undefined, tfApitoken: undefined,
+      tfUsertokenConfigured: !!config.tfUsertoken,
+      tfApikeyConfigured: !!config.tfApikey,
+      tfApitokenConfigured: !!config.tfApitoken,
+    };
   }
 
   async updateConfig(userId: string, data: any) {
@@ -63,6 +106,12 @@ export class FiscalService {
     if (!config) throw new BadRequestException('Empresa no configurada');
 
     const client = await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+
+    // Check tipoComprobante — RAMITO clients don't get fiscal invoices
+    if (client.tipoComprobante === 'RAMITO') {
+      this.logger.log(`Cliente ${client.nombreNormalizado}: tipoComprobante=RAMITO, no se emite comprobante fiscal`);
+      return null;
+    }
     const sub = await this.prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
 
     const esMock = config.providerName === 'mock';
@@ -84,7 +133,8 @@ export class FiscalService {
       detalle: [{ descripcion: `${sub?.tipo || 'Servicio'} — ${sub?.plan?.nombre || 'Sin plan'}`, cantidad: 1, precioUnitario: precio }],
     };
 
-    const output = await this.provider.emitirComprobante(input);
+    const provider = await this.getProvider();
+    const output = await provider.emitirComprobante(input);
 
     const comprobante = await this.prisma.comprobante.create({
       data: {
@@ -141,13 +191,14 @@ export class FiscalService {
       receptor: { tipoDoc: 'DOC', numeroDoc: comp.receptorDoc, nombre: comp.receptorNombre, condicionFiscal: comp.receptorCondicion },
       detalle: comp.detalle as any[],
     };
-    const output = await this.provider.emitirComprobante(input);
+    const provider = await this.getProvider();
+    const output = await provider.emitirComprobante(input);
     return output.pdfBuffer;
   }
 
   async anular(id: string, userId: string) {
     const comp = await this.prisma.comprobante.findUniqueOrThrow({ where: { id } });
-    if (comp.cae) await this.provider.anularComprobante(comp.cae);
+    if (comp.cae) { const p = await this.getProvider(); await p.anularComprobante(comp.cae); }
     const updated = await this.prisma.comprobante.update({ where: { id }, data: { estado: EstadoComprobante.ANULADO } });
     await this.audit.log(userId, 'COMPROBANTE_ANULADO', 'COMPROBANTE', id);
     return updated;
