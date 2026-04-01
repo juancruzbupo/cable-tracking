@@ -21,7 +21,7 @@ cable-tracking/
 │   ├── backend/
 │   │   ├── prisma/
 │   │   │   ├── schema.prisma          → 16 modelos, 14 enums
-│   │   │   └── migrations/            → 15 migraciones
+│   │   │   └── migrations/            → 16 migraciones
 │   │   ├── scripts/                   → seed-admin, seed-plans, migrate-subscriptions
 │   │   └── src/
 │   │       ├── main.ts                → Bootstrap (CORS, Swagger, ValidationPipe, GlobalExceptionFilter)

@@ -70,6 +70,7 @@ export interface ClientDebtInfo {
 
 export interface ClientWithDebt extends Client {
   debtInfo: ClientDebtInfo;
+  ticketsAbiertos?: number;
 }
 
 export interface ClientDetailResult extends ClientDebtInfo {
@@ -249,4 +250,50 @@ export interface Pagination {
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: Pagination;
+}
+
+// ── Equipment ──────────────────────────────────────────────────────────────
+
+export type EquipmentStatus = 'EN_DEPOSITO' | 'ASIGNADO' | 'EN_REPARACION' | 'DE_BAJA';
+
+export interface Equipment {
+  id: string;
+  tipo: string;
+  marca?: string | null;
+  modelo?: string | null;
+  numeroSerie?: string | null;
+  estado: EquipmentStatus;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentAssignment {
+  id: string;
+  equipmentId: string;
+  clientId: string;
+  equipment?: Equipment;
+  fechaInstalacion: string;
+  fechaRetiro?: string | null;
+  notas?: string | null;
+  createdAt: string;
+}
+
+// ── Tickets ────────────────────────────────────────────────────────────────
+
+export type TicketStatus = 'ABIERTO' | 'RESUELTO';
+export type TicketType = 'SIN_SENIAL' | 'LENTITUD_INTERNET' | 'RECONEXION' | 'INSTALACION' | 'CAMBIO_EQUIPO' | 'OTRO';
+
+export interface Ticket {
+  id: string;
+  clientId: string;
+  tipo: TicketType;
+  descripcion?: string | null;
+  estado: TicketStatus;
+  notas?: string | null;
+  creadoPor: string;
+  resuelto?: string | null;
+  client?: { id: string; nombreNormalizado: string; codCli: string };
+  createdAt: string;
+  updatedAt: string;
 }

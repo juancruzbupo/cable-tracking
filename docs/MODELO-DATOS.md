@@ -202,7 +202,7 @@ Configuracion de la empresa emisora (singleton).
 | providerName | String | "mock" / "tusFacturas" / etc |
 | providerApiKey | String? | API key (no se retorna en GET) |
 | providerConfig | JSON? | Config adicional del proveedor |
-| iibb | String? | Ingresos brutos |
+| ingresosBrutos | String? | Ingresos brutos (IIBB). Campo `iibb` eliminado por duplicidad |
 | actividadCodigo | String? | Default: "613000" (Telecomunicaciones) |
 | localidad | String? | Localidad de la empresa |
 | logoUrl | String? | URL del logo |

@@ -83,13 +83,14 @@ export class ClientsService {
           orderBy: { nombreNormalizado: 'asc' },
           skip: (page - 1) * limit,
           take: limit,
-          include: SUBS_INCLUDE,
+          include: { ...SUBS_INCLUDE, _count: { select: { tickets: { where: { estado: 'ABIERTO' } } } } },
         }),
         this.prisma.client.count({ where }),
       ]);
 
       const data = clients.map((c) => ({
         ...c,
+        ticketsAbiertos: c._count?.tickets ?? 0,
         debtInfo: this.calculateDebt(
           c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle,
           c.subscriptions,
@@ -105,11 +106,12 @@ export class ClientsService {
     const allClients = await this.prisma.client.findMany({
       where,
       orderBy: { nombreNormalizado: 'asc' },
-      include: SUBS_INCLUDE,
+      include: { ...SUBS_INCLUDE, _count: { select: { tickets: { where: { estado: 'ABIERTO' } } } } },
     });
 
     const withDebt = allClients.map((c) => ({
       ...c,
+      ticketsAbiertos: c._count?.tickets ?? 0,
       debtInfo: this.calculateDebt(
         c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle,
         c.subscriptions,

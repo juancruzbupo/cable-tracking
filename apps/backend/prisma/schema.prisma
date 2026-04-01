@@ -381,8 +381,6 @@ model EmpresaConfig {
   providerApiKey  String?  @map("provider_api_key")
   providerConfig  Json?    @map("provider_config")
 
-  // Datos fiscales completos para PDF
-  iibb            String?
   actividadCodigo String?  @default("613000") @map("actividad_codigo")
   localidad       String?
   logoUrl         String?  @map("logo_url")
@@ -439,7 +437,7 @@ model EquipmentAssignment {
   fechaRetiro      DateTime?  @map("fecha_retiro")
   notas            String?
 
-  equipment        Equipment  @relation(fields: [equipmentId], references: [id])
+  equipment        Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
   client           Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   createdAt        DateTime   @default(now()) @map("created_at")

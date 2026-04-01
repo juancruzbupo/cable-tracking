@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import {
   SearchOutlined, WarningOutlined, DownloadOutlined, EyeOutlined, PlusOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { exportApi } from '../../services/api';
 import { useClients, useClientDetail } from './hooks/useClients';
@@ -131,6 +132,16 @@ export default function ClientsPage() {
               title: 'Nombre',
               dataIndex: 'nombreNormalizado',
               ellipsis: true,
+              render: (name: string, r: ClientWithDebt) => (
+                <span>
+                  {name}
+                  {(r.ticketsAbiertos ?? 0) > 0 && (
+                    <Tooltip title={`${r.ticketsAbiertos} ticket(s) abierto(s)`}>
+                      <ExclamationCircleOutlined style={{ color: '#faad14', marginLeft: 6 }} />
+                    </Tooltip>
+                  )}
+                </span>
+              ),
             },
             {
               title: 'Estado',
