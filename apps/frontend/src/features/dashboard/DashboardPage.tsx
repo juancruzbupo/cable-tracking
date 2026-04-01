@@ -1,29 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Card, Row, Col, Statistic, Spin, Alert, Table, Tag, Typography } from 'antd';
 import {
-  Card,
-  Row,
-  Col,
-  Statistic,
-  Spin,
-  Alert,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
-import {
-  TeamOutlined,
-  WarningOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
+  TeamOutlined, WarningOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  ArrowUpOutlined, ArrowDownOutlined,
 } from '@ant-design/icons';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-} from 'recharts';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { dashboardApi, getErrorMessage } from '../../services/api';
 import type { DashboardMetrics } from '../../types';
 
@@ -31,13 +12,22 @@ const COLORS = ['#52c41a', '#faad14', '#ff7a45', '#f5222d'];
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
+  const [tendencia, setTendencia] = useState<any>(null);
+  const [mrr, setMrr] = useState<any>(null);
+  const [crecimiento, setCrecimiento] = useState<any>(null);
+  const [zonas, setZonas] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    dashboardApi
-      .getMetrics()
-      .then(setData)
+    Promise.all([
+      dashboardApi.getMetrics(),
+      dashboardApi.getTendencia().catch(() => null),
+      dashboardApi.getMrr().catch(() => null),
+      dashboardApi.getCrecimiento().catch(() => null),
+      dashboardApi.getZonas().catch(() => null),
+    ])
+      .then(([m, t, mr, c, z]) => { setData(m); setTendencia(t); setMrr(mr); setCrecimiento(c); setZonas(z); })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
   }, []);
@@ -46,121 +36,122 @@ export default function DashboardPage() {
   if (error) return <Alert type="error" message={error} showIcon />;
   if (!data) return null;
 
-  const { resumen, deuda, documentos } = data;
+  const { resumen, deuda } = data;
+  const d = data as any; // extended fields
 
   const pie = [
     { name: 'Al día', value: deuda.alDia },
     { name: '1 mes', value: deuda.unMes },
     { name: '2 meses', value: deuda.dosMeses },
     { name: '+2 meses', value: deuda.masDosMeses },
-  ].filter((d) => d.value > 0);
+  ].filter((x) => x.value > 0);
+
+  const tieneZonas = zonas?.zonas?.some((z: any) => z.zona !== 'Sin zona');
 
   return (
     <div>
       <Typography.Title level={3}>Dashboard</Typography.Title>
 
-      {/* Resumen */}
+      {/* Fila 1 — KPIs existentes */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic title="Total Clientes" value={resumen.totalClients} prefix={<TeamOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic title="Activos" value={resumen.activeClients} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a' }} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic title="De Baja" value={resumen.bajaClients} prefix={<CloseCircleOutlined />} valueStyle={{ color: '#8c8c8c' }} />
+        <Col xs={24} sm={6}><Card><Statistic title="Total Clientes" value={resumen.totalClients} prefix={<TeamOutlined />} /></Card></Col>
+        <Col xs={24} sm={6}><Card><Statistic title="Activos" value={resumen.activeClients} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+        <Col xs={24} sm={6}><Card><Statistic title="De Baja" value={resumen.bajaClients} prefix={<CloseCircleOutlined />} valueStyle={{ color: '#8c8c8c' }} /></Card></Col>
+        <Col xs={24} sm={6}>
+          <Card style={{ borderColor: '#faad14' }}>
+            <Statistic title="En riesgo de corte" value={d.clientesEnRiesgo ?? 0} prefix={<WarningOutlined />} valueStyle={{ color: '#faad14' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>A un mes del corte</Typography.Text>
           </Card>
         </Col>
       </Row>
 
-      {/* Deuda */}
+      {/* Fila 2 — MRR */}
+      {mrr && (
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={12} sm={6}><Card size="small"><Statistic title="Ingreso teórico" value={mrr.mrrTeorico} prefix="$" precision={0} valueStyle={{ color: '#1677ff' }} /><Typography.Text type="secondary" style={{ fontSize: 10 }}>Suma de planes activos</Typography.Text></Card></Col>
+          <Col xs={12} sm={6}><Card size="small"><Statistic title="Recaudado" value={mrr.mrrRecaudado} prefix="$" precision={0} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+          <Col xs={12} sm={6}><Card size="small"><Statistic title="% Recaudación" value={mrr.porcentajeRecaudado} suffix="%" precision={1} valueStyle={{ color: mrr.porcentajeRecaudado >= 80 ? '#52c41a' : mrr.porcentajeRecaudado >= 60 ? '#faad14' : '#ff4d4f' }} /></Card></Col>
+          <Col xs={12} sm={6}><Card size="small"><Statistic title="Sin plan asignado" value={mrr.sinPlanAsignado} suffix="subs" valueStyle={{ color: mrr.sinPlanAsignado > 0 ? '#faad14' : '#52c41a', fontSize: 20 }} />{mrr.sinPlanAsignado > 0 && <Typography.Text type="warning" style={{ fontSize: 10 }}>Sin precio configurado</Typography.Text>}</Card></Col>
+        </Row>
+      )}
+
+      {/* Fila 3 — Deuda */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={12} sm={6}>
-          <Card><Statistic title="Al día" value={deuda.alDia} valueStyle={{ color: '#52c41a' }} /></Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card><Statistic title="1 mes deuda" value={deuda.unMes} valueStyle={{ color: '#faad14' }} /></Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card><Statistic title="2 meses deuda" value={deuda.dosMeses} valueStyle={{ color: '#ff7a45' }} /></Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="+2 meses (CORTE)" value={deuda.masDosMeses} prefix={<WarningOutlined />} valueStyle={{ color: '#f5222d' }} />
-          </Card>
-        </Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Al día" value={deuda.alDia} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="1 mes deuda" value={deuda.unMes} valueStyle={{ color: '#faad14' }} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="2 meses deuda" value={deuda.dosMeses} valueStyle={{ color: '#ff7a45' }} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="+2 meses (CORTE)" value={deuda.masDosMeses} prefix={<WarningOutlined />} valueStyle={{ color: '#f5222d' }} /></Card></Col>
       </Row>
 
-      {/* Charts + KPIs */}
+      {/* Fila 4 — Gráficos */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} md={12}>
+          <Card title="Tendencia de cobranza (12 meses)">
+            {tendencia?.meses?.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={tendencia.meses}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                  <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
+                  <Tooltip formatter={(v: number) => [`${v}%`, '% cobrado']} />
+                  <ReferenceLine y={80} stroke="#52c41a" strokeDasharray="4 4" />
+                  <Line type="monotone" dataKey="porcentaje" stroke="#1677ff" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Sin datos de tendencia</div>}
+          </Card>
+        </Col>
         <Col xs={24} md={12}>
           <Card title="Distribución de deuda">
             {pie.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
-                  <Pie data={pie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
-                    {pie.map((item, i) => (
-                      <Cell key={item.name} fill={COLORS[i % COLORS.length]} />
-                    ))}
+                  <Pie data={pie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }: any) => `${name}: ${value}`}>
+                    {pie.map((item, i) => <Cell key={item.name} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip /><Legend />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-                Sin datos. Importá archivos primero.
-              </div>
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card title="Indicadores clave">
-            <Statistic
-              title="Tasa de morosidad"
-              value={deuda.tasaMorosidad}
-              precision={1}
-              suffix="%"
-              valueStyle={{ color: deuda.tasaMorosidad > 30 ? '#f5222d' : '#faad14' }}
-            />
-            <Statistic title="Para corte" value={deuda.requierenCorte} valueStyle={{ color: '#f5222d' }} style={{ marginTop: 20 }} />
-            <Row gutter={16} style={{ marginTop: 20 }}>
-              <Col span={12}><Statistic title="Ramitos" value={documentos.ramitos} /></Col>
-              <Col span={12}><Statistic title="Facturas" value={documentos.facturas} /></Col>
-            </Row>
-            <Statistic title="Períodos registrados" value={documentos.periodosRegistrados} style={{ marginTop: 16 }} />
+            ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Sin datos</div>}
           </Card>
         </Col>
       </Row>
 
-      {/* Import log */}
+      {/* Fila 5 — Crecimiento */}
+      {crecimiento && (
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={12} sm={4}><Card size="small"><Statistic title="Altas del mes" value={crecimiento.mesActual.altas} prefix={<ArrowUpOutlined />} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+          <Col xs={12} sm={4}><Card size="small"><Statistic title="Bajas del mes" value={crecimiento.mesActual.bajas} prefix={<ArrowDownOutlined />} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
+          <Col xs={12} sm={4}><Card size="small"><Statistic title="Neto" value={crecimiento.mesActual.neto} prefix={crecimiento.mesActual.neto >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} valueStyle={{ color: crecimiento.mesActual.neto >= 0 ? '#52c41a' : '#ff4d4f' }} /></Card></Col>
+          <Col xs={12} sm={6}><Card size="small"><Statistic title="Penetración internet" value={crecimiento.penetracionInternet.porcentajeInternet} suffix="%" precision={1} valueStyle={{ color: '#1677ff' }} /><Typography.Text type="secondary" style={{ fontSize: 10 }}>{crecimiento.penetracionInternet.ambos + crecimiento.penetracionInternet.soloInternet} con internet</Typography.Text></Card></Col>
+          <Col xs={12} sm={6}><Card size="small"><Statistic title="Potencial internet" value={crecimiento.penetracionInternet.oportunidad} suffix="clientes" valueStyle={{ color: '#722ed1' }} /><Typography.Text type="secondary" style={{ fontSize: 10 }}>Solo cable, sin internet</Typography.Text></Card></Col>
+        </Row>
+      )}
+
+      {/* Fila 6 — Zonas */}
+      {tieneZonas && (
+        <Card title="Morosidad por zona" size="small" style={{ marginTop: 16 }}>
+          <Table dataSource={zonas.zonas} rowKey="zona" size="small" pagination={false} columns={[
+            { title: 'Zona', dataIndex: 'zona' },
+            { title: 'Clientes', dataIndex: 'totalClientes', align: 'center' as const },
+            { title: 'Al día', dataIndex: 'alDia', align: 'center' as const, render: (v: number) => <Tag color="green">{v}</Tag> },
+            { title: 'En riesgo', dataIndex: 'enRiesgo', align: 'center' as const, render: (v: number) => v > 0 ? <Tag color="orange">{v}</Tag> : <Tag>0</Tag> },
+            { title: 'En corte', dataIndex: 'enCorte', align: 'center' as const, render: (v: number) => v > 0 ? <Tag color="red">{v}</Tag> : <Tag>0</Tag> },
+            { title: '% Morosidad', dataIndex: 'porcentajeMorosidad', align: 'center' as const, render: (v: number) => <span style={{ color: v > 30 ? '#ff4d4f' : v > 15 ? '#faad14' : '#52c41a', fontWeight: 'bold' }}>{v.toFixed(1)}%</span> },
+          ]} />
+        </Card>
+      )}
+
+      {/* Fila 7 — Import log */}
       <Card title="Últimas importaciones" style={{ marginTop: 16 }}>
-        <Table
-          dataSource={data.ultimasImportaciones}
-          rowKey="id"
-          pagination={false}
-          size="small"
-          locale={{ emptyText: 'Sin importaciones aún' }}
-          columns={[
-            { title: 'Tipo', dataIndex: 'tipo', render: (t: string) => <Tag>{t}</Tag> },
-            { title: 'Archivo', dataIndex: 'fileName', ellipsis: true },
-            { title: 'Filas', dataIndex: 'totalRows', width: 70 },
-            { title: 'Válidas', dataIndex: 'validRows', width: 70 },
-            {
-              title: 'Estado', dataIndex: 'status', width: 100,
-              render: (s: string) => <Tag color={s === 'SUCCESS' ? 'green' : s === 'PARTIAL' ? 'orange' : 'red'}>{s}</Tag>,
-            },
-            {
-              title: 'Fecha', dataIndex: 'executedAt', width: 160,
-              render: (d: string) => new Date(d).toLocaleString('es-AR'),
-            },
-          ]}
-        />
+        <Table dataSource={data.ultimasImportaciones} rowKey="id" pagination={false} size="small" locale={{ emptyText: 'Sin importaciones aún' }} columns={[
+          { title: 'Tipo', dataIndex: 'tipo', render: (t: string) => <Tag>{t}</Tag> },
+          { title: 'Archivo', dataIndex: 'fileName', ellipsis: true },
+          { title: 'Filas', dataIndex: 'totalRows', width: 70 },
+          { title: 'Válidas', dataIndex: 'validRows', width: 70 },
+          { title: 'Estado', dataIndex: 'status', width: 100, render: (s: string) => <Tag color={s === 'SUCCESS' ? 'green' : s === 'PARTIAL' ? 'orange' : 'red'}>{s}</Tag> },
+          { title: 'Fecha', dataIndex: 'executedAt', width: 160, render: (d: string) => new Date(d).toLocaleString('es-AR') },
+        ]} />
       </Card>
     </div>
   );

@@ -197,6 +197,11 @@ export const dashboardApi = {
     const { data } = await api.get('/dashboard/corte');
     return data;
   },
+  getTendencia: async () => { const { data } = await api.get('/dashboard/tendencia'); return data; },
+  getMrr: async () => { const { data } = await api.get('/dashboard/mrr'); return data; },
+  getRiesgo: async () => { const { data } = await api.get('/dashboard/riesgo'); return data; },
+  getCrecimiento: async () => { const { data } = await api.get('/dashboard/crecimiento'); return data; },
+  getZonas: async () => { const { data } = await api.get('/dashboard/zonas'); return data; },
 };
 
 // ── Export ──────────────────────────────────────────────────────────────────

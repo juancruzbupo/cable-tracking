@@ -16,6 +16,10 @@ export class FindClientsDto {
   debtStatus?: 'AL_DIA' | '1_MES' | '2_MESES' | 'MAS_2_MESES';
 
   @IsOptional()
+  @MaxLength(100)
+  zona?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

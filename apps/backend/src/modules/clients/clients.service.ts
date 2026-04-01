@@ -28,6 +28,7 @@ export interface ClientListFilters {
   search?: string;
   estado?: ClientStatus;
   debtStatus?: 'AL_DIA' | '1_MES' | '2_MESES' | 'MAS_2_MESES';
+  zona?: string;
   page?: number;
   limit?: number;
 }
@@ -58,9 +59,12 @@ export class ClientsService {
    * pagination.total no matcheaba con los resultados mostrados.
    */
   async findAll(filters: ClientListFilters) {
-    const { search, estado, debtStatus, page = 1, limit = 20 } = filters;
+    const { search, estado, debtStatus, zona, page = 1, limit = 20 } = filters;
 
     const where: Prisma.ClientWhereInput = {};
+    if (zona) {
+      where.zona = zona === 'Sin zona' ? null : zona;
+    }
     if (search) {
       where.OR = [
         { nombreNormalizado: { contains: search.toUpperCase(), mode: 'insensitive' } },
