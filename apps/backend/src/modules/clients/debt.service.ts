@@ -47,6 +47,7 @@ export class DebtService {
     fechaAlta: Date,
     paidPeriods: Array<{ year: number; month: number }>,
     promosGratis: PromoData[] = [],
+    umbralCorte: number = 1,
   ): SubscriptionDebt {
     const result: SubscriptionDebt = {
       subscriptionId: subId, tipo, fechaAlta,
@@ -96,7 +97,7 @@ export class DebtService {
     });
 
     result.cantidadDeuda = result.mesesAdeudados.length;
-    result.requiereCorte = result.cantidadDeuda > 1;
+    result.requiereCorte = result.cantidadDeuda > umbralCorte;
     return result;
   }
 
@@ -119,6 +120,7 @@ export class DebtService {
       plan?: { promotions?: Array<{ id: string; nombre: string; tipo: string; valor: any; fechaInicio: Date; fechaFin: Date }> } | null;
       clientPromotions?: Array<{ promotion: { id: string; nombre: string; tipo: string; valor: any; fechaInicio: Date; fechaFin: Date } }>;
     }>,
+    umbralCorte: number = 1,
   ): ClientDebtInfo {
     const subDebts: SubscriptionDebt[] = subscriptions.map((sub) => {
       const promosGratis: PromoData[] = [
@@ -129,7 +131,7 @@ export class DebtService {
           .filter((cp) => cp.promotion.tipo === 'MESES_GRATIS')
           .map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo as any, valor: Number(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
       ];
-      return this.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, promosGratis);
+      return this.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, promosGratis, umbralCorte);
     });
 
     const cableDebt = subDebts.find((s) => s.tipo === ServiceType.CABLE);

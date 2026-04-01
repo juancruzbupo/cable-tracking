@@ -60,6 +60,10 @@ Abonado del servicio de cable/internet.
 | razonSocial | String? | Para empresas |
 | telefono | String? | Contacto |
 | email | String? | Contacto |
+| codigoPostal | String? | Codigo postal (ARCA) |
+| localidad | String? | Localidad |
+| provincia | String? | Default: "Entre Ríos" |
+| zona | String? | Zona de cobranza (para recorridos) |
 
 ### Subscription
 Servicio activo de un cliente. Un cliente puede tener maximo uno de cada tipo.
@@ -184,6 +188,12 @@ Configuracion de la empresa emisora (singleton).
 | puntoVenta | Int | Punto de venta AFIP |
 | providerName | String | "mock" / "tusFacturas" / etc |
 | providerApiKey | String? | API key (no se retorna en GET) |
+| iibb | String? | Ingresos brutos |
+| actividadCodigo | String? | Default: "613000" (Telecomunicaciones) |
+| localidad | String? | Localidad de la empresa |
+| logoUrl | String? | URL del logo |
+| umbralCorte | Int | Default: 1. Meses deuda > umbral = corte |
+| zonaDefault | String? | Zona por defecto para alta de clientes |
 
 ### ClientNote
 Notas de texto libre sobre un cliente.

@@ -14,7 +14,7 @@ La deuda se calcula **por suscripcion** (no por cliente) en `calculateSubDebt()`
    - No se duplica: si un mes esta pagado Y tiene promo, cuenta una sola vez.
 4. Deuda = meses desde ultimo cubierto + 1 hasta el mes actual.
    - Huecos anteriores al ultimo cubierto se perdonan.
-5. `requiereCorte = cantidadDeuda > 1` (2+ meses = corte).
+5. `requiereCorte = cantidadDeuda > umbralCorte` (configurable en EmpresaConfig, default 1 → 2+ meses = corte).
 
 ### Resumen por cliente
 

@@ -23,6 +23,11 @@ export class SchedulerService {
   @Cron('0 5 * * *', { timeZone: 'America/Argentina/Buenos_Aires' })
   async recalcularDeudas() {
     this.logger.log('Iniciando recalculo nocturno de deudas...');
+
+    // Cargar umbralCorte de config (una sola vez, fuera del loop)
+    const config = await this.prisma.empresaConfig.findFirst();
+    const umbralCorte = config?.umbralCorte ?? 1;
+
     const subs = await this.prisma.subscription.findMany({
       where: { estado: ClientStatus.ACTIVO },
       include: {
@@ -37,7 +42,7 @@ export class SchedulerService {
     for (let i = 0; i < subs.length; i += BATCH) {
       const batch = subs.slice(i, i + BATCH);
       const updates = batch.map((sub) => {
-        const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods);
+        const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, [], umbralCorte);
         if (debt.requiereCorte) conCorte++;
         return this.prisma.subscription.update({
           where: { id: sub.id },
@@ -48,6 +53,6 @@ export class SchedulerService {
     }
 
     this.lastRun = { at: new Date(), processed: subs.length, conCorte };
-    this.logger.log(`Recalculo completo: ${subs.length} suscripciones, ${conCorte} en corte`);
+    this.logger.log(`Recalculo completo: ${subs.length} suscripciones, ${conCorte} en corte (umbral: ${umbralCorte})`);
   }
 }

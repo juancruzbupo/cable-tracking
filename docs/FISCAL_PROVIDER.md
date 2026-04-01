@@ -45,6 +45,19 @@ export class TusFacturasProvider implements IFiscalProvider {
 | total | ImpTotal |
 | iva | ImpIVA |
 
+## Campos ARCA obligatorios (servicios)
+
+| Campo sistema | Campo ARCA | Nota |
+|---|---|---|
+| concepto | Concepto | Siempre 2 (Servicios) |
+| fechaServDesde | FchServDesde | Primer dia del periodo facturado |
+| fechaServHasta | FchServHasta | Ultimo dia del periodo facturado |
+| fechaVtoPago | FchVtoPago | Fecha limite de pago |
+| formaPago | - | CONTADO / CUENTA_CORRIENTE |
+
+Estos campos son obligatorios en ARCA cuando `concepto = 2` (servicios).
+El MockProvider los ignora pero deben estar completos para el provider real.
+
 ## Seguridad
 
 - `providerApiKey` NO se retorna en GET /api/fiscal/config (se muestra ofuscada)
