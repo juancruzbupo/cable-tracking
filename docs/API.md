@@ -1,195 +1,144 @@
 # API Reference
 
-Base URL: `/api`
-Swagger UI: `http://localhost:3000/api/docs`
+Base URL: `/api` | Swagger: `http://localhost:3000/api/docs`
+Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 
-## Health
+## Health (publico)
+| Metodo | Ruta | Descripcion |
+|---|---|---|
+| GET | /health | Status del servidor |
 
-### GET /health
-Verifica que el backend esta corriendo.
-
-**Response:** `{ "status": "ok", "timestamp": "2026-04-01T12:00:00.000Z" }`
-
----
+## Auth (publico: login; autenticado: me, change-password)
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| POST | /auth/login | publico | Login → `{ accessToken, user }` |
+| GET | /auth/me | todos | Usuario actual |
+| POST | /auth/change-password | todos | Cambiar password `{ currentPassword, newPassword }` |
+| GET | /auth/users | ADMIN | Listar usuarios |
+| POST | /auth/users | ADMIN | Crear usuario `{ name, email, password, role }` |
+| PATCH | /auth/users/:id | ADMIN | Actualizar `{ name?, role?, isActive? }` |
 
 ## Clients
-
-### GET /clients
-Lista clientes con filtros y paginacion.
-
-**Query params (validados por DTO):**
-| Param | Tipo | Default | Descripcion |
+| Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
-| search | string (max 100) | - | Busca por nombre o codigo |
-| estado | ACTIVO / BAJA | - | Filtrar por estado |
-| debtStatus | AL_DIA / 1_MES / 2_MESES / MAS_2_MESES | - | Filtrar por nivel de deuda |
-| page | int (min 1) | 1 | Pagina |
-| limit | int (1-100) | 20 | Resultados por pagina |
+| GET | /clients | todos | Lista con filtros `?search,estado,debtStatus,page,limit` |
+| GET | /clients/stats | todos | Estadisticas de deuda |
+| GET | /clients/:id | todos | Detalle con deuda + documentos paginados `?docPage,docLimit` |
+| POST | /clients | ADMIN,OPER | Alta de cliente `{ nombreOriginal, subscriptions[] }` |
+| PATCH | /clients/:id/deactivate | ADMIN,OPER | Baja logica |
+| PATCH | /clients/:id/reactivate | ADMIN | Reactivar |
+| PATCH | /clients/:id/fiscal | ADMIN,OPER | Datos fiscales `{ tipoDocumento, numeroDocumento, condicionFiscal }` |
 
-**Response:**
-```json
-{
-  "data": [{
-    "id": "uuid",
-    "codCli": "201",
-    "nombreOriginal": "GARCIA ANA 6 megas",
-    "nombreNormalizado": "GARCIA ANA",
-    "fechaAlta": "2024-06-01T00:00:00.000Z",
-    "estado": "ACTIVO",
-    "calle": "AV. SAN MARTIN 123",
-    "paymentPeriods": [{ "year": 2026, "month": 1 }],
-    "debtInfo": {
-      "clientId": "uuid",
-      "codCli": "201",
-      "cantidadDeuda": 3,
-      "requiereCorte": true,
-      "mesesAdeudados": ["2026-01", "2026-02", "2026-03"],
-      "mesesPagados": ["2025-12"],
-      "mesesObligatorios": ["2024-06", "..."]
-    }
-  }],
-  "pagination": { "total": 1099, "page": 1, "limit": 20, "totalPages": 55 }
-}
-```
-
-**Nota:** Cuando se filtra por `debtStatus`, se cargan todos los clientes en memoria para calcular deuda y filtrar. Esto funciona bien hasta ~10k clientes.
-
-### GET /clients/stats
-Estadisticas de deuda de todos los clientes activos.
-
-**Response:**
-```json
-{
-  "total": 628,
-  "alDia": 10,
-  "unMes": 50,
-  "dosMeses": 200,
-  "masDosMeses": 368,
-  "requierenCorte": 568,
-  "tasaMorosidad": 98.4,
-  "clientesParaCorte": ["GARCIA ANA", "LOPEZ JUAN", "..."]
-}
-```
-
-### GET /clients/:id
-Detalle de un cliente con deuda y documentos paginados.
-
-**Query params:**
-| Param | Tipo | Default | Descripcion |
+## Suscripciones (sub-recursos de /clients/:id)
+| Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
-| docPage | int (min 1) | 1 | Pagina de documentos |
-| docLimit | int (1-50) | 20 | Documentos por pagina |
+| PATCH | /clients/:id/subscriptions/:subId/plan | ADMIN,OPER | Asignar plan `{ planId }` |
+| PATCH | /clients/:id/subscriptions/:subId/deactivate | ADMIN,OPER | Cancelar servicio |
+| PATCH | /clients/:id/subscriptions/:subId/reactivate | ADMIN | Reactivar servicio |
+| PATCH | /clients/:id/subscriptions/:subId | ADMIN | Editar fechaAlta `{ fechaAlta }` |
 
-**Response:** ClientDetailResult con `debtInfo` + `documents[]` + `docPagination`
+## Pagos manuales
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| POST | /clients/:id/subscriptions/:subId/payments | ADMIN,OPER | Registrar pago `{ year, month }` |
+| DELETE | /clients/:id/subscriptions/:subId/payments/:periodId | ADMIN | Eliminar pago manual |
 
----
+## Notas e historial
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /clients/:id/notes | todos | Listar notas |
+| POST | /clients/:id/notes | ADMIN,OPER | Agregar nota `{ content }` |
+| DELETE | /clients/:id/notes/:noteId | ADMIN | Eliminar nota |
+| GET | /clients/:id/history | ADMIN,OPER | Historial audit log |
+
+## Promociones del cliente
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /clients/:id/promotions | todos | Promos activas del cliente |
+| POST | /clients/:id/subscriptions/:subId/promotions | ADMIN,OPER | Asignar promo `{ promotionId }` |
+| DELETE | /clients/:id/subscriptions/:subId/promotions/:promoId | ADMIN | Desasignar promo |
 
 ## Documents
-
-### GET /documents
-Lista documentos con filtros.
-
-**Query params (validados por DTO):**
-| Param | Tipo | Default | Descripcion |
+| Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
-| tipo | RAMITO / FACTURA | - | Filtrar por tipo |
-| clientId | UUID | - | Filtrar por cliente |
-| page | int (min 1) | 1 | Pagina |
-| limit | int (1-100) | 20 | Resultados por pagina |
-
-### GET /documents/:id
-Detalle de un documento. Retorna 404 si no existe.
-
----
+| GET | /documents | todos | Lista `?tipo,clientId,page,limit` |
+| GET | /documents/:id | todos | Detalle |
 
 ## Import
-
-### POST /import/preview/:tipo
-Preview de un archivo Excel antes de importar. `tipo`: `clientes`, `ramitos`, `facturas`.
-
-**Body:** `multipart/form-data` con campo `file` (xlsx/xls, max 10MB)
-
-**Response:**
-```json
-{
-  "headers": ["cod_cli", "nombre", "fecha", "descrip"],
-  "totalRows": 500,
-  "sampleRows": [{ "cod_cli": 201, "nombre": "GARCIA ANA" }],
-  "validRows": 498,
-  "invalidRows": 2,
-  "errors": [{ "row": 10, "message": "Codigo de cliente vacio" }]
-}
-```
-
-### POST /import/clientes
-Importa clientes. No pisa existentes.
-
-### POST /import/ramitos
-Importa remitos. BORRA TODOS los remitos existentes primero.
-
-### POST /import/facturas
-Importa facturas. BORRA TODAS las facturas existentes primero.
-
-**Response (los 3):**
-```json
-{
-  "success": true,
-  "tipo": "RAMITOS",
-  "totalRows": 500,
-  "validRows": 490,
-  "invalidRows": 10,
-  "newClients": 0,
-  "updatedClients": 0,
-  "documentsCreated": 490,
-  "periodsCreated": 850,
-  "errors": [{ "row": 5, "message": "Cliente no encontrado con codigo: \"999\"", "value": "999" }]
-}
-```
-
-### GET /import/logs
-Historial de importaciones (limit max 100, default 20).
-
----
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| POST | /import/preview/:tipo | ADMIN | Preview archivo Excel |
+| POST | /import/clientes | ADMIN | Importar clientes |
+| POST | /import/ramitos | ADMIN | Importar ramitos |
+| POST | /import/facturas | ADMIN | Importar facturas |
+| GET | /import/logs | ADMIN,OPER | Historial de importaciones |
 
 ## Dashboard
-
-### GET /dashboard
-Metricas generales. **Cacheado 1 minuto.**
-
-### GET /dashboard/corte
-Lista de clientes que requieren corte. **Cacheado 1 minuto.**
-
----
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /dashboard | todos | Metricas generales (cache 1min) |
+| GET | /dashboard/corte | todos | Lista para corte (cache 1min) |
 
 ## Export
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /export/corte | ADMIN,OPER | Excel lista corte |
+| GET | /export/clients | ADMIN,OPER | Excel todos los clientes |
+| GET | /export/resumen | ADMIN,OPER | Excel resumen general |
 
-### GET /export/corte
-Descarga Excel con clientes para corte.
+## Plans
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /plans | todos | Planes activos `?tipo` |
+| GET | /plans/all | ADMIN | Todos los planes |
+| POST | /plans | ADMIN | Crear plan |
+| PATCH | /plans/:id | ADMIN | Editar plan |
+| DELETE | /plans/:id | ADMIN | Eliminar plan |
 
-### GET /export/clients
-Descarga Excel con todos los clientes y su estado de deuda.
+## Promotions
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /promotions | ADMIN,OPER | Lista `?scope,tipo,activa,planId` |
+| GET | /promotions/active | todos | Promos vigentes hoy |
+| GET | /promotions/:id | ADMIN,OPER | Detalle |
+| POST | /promotions | ADMIN | Crear promo |
+| PATCH | /promotions/:id | ADMIN | Editar promo |
+| DELETE | /promotions/:id | ADMIN | Eliminar promo |
 
-### GET /export/resumen
-Descarga Excel con resumen general + hoja de corte.
+## Billing
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /billing/invoice/:clientId | ADMIN,OPER | PDF factura `?month,year` |
+| POST | /billing/invoices/batch | ADMIN | ZIP facturas masivas `{ month, year }` |
+| GET | /billing/report | ADMIN,OPER | Reporte cobranza `?month,year` |
+| GET | /billing/corte/print | ADMIN,OPER | PDF lista corte |
 
----
+## Fiscal
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /fiscal/config | ADMIN | Config empresa |
+| PATCH | /fiscal/config | ADMIN | Actualizar config |
+| GET | /fiscal/comprobantes | ADMIN,OPER | Lista `?clientId,estado,tipo,page,limit` |
+| GET | /fiscal/comprobantes/:id | ADMIN,OPER | Detalle |
+| GET | /fiscal/comprobantes/:id/pdf | ADMIN,OPER | Descargar PDF |
+| POST | /fiscal/comprobantes/pago/:ppId | ADMIN,OPER | Emitir por pago |
+| POST | /fiscal/comprobantes/batch | ADMIN | Emision masiva `{ month, year }` |
+| PATCH | /fiscal/comprobantes/:id/anular | ADMIN | Anular comprobante |
+
+## Scheduler
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /scheduler/status | ADMIN | Status ultimo calculo |
 
 ## Errores
-
-Todas las respuestas de error siguen el formato:
-
 ```json
-{
-  "success": false,
-  "statusCode": 400,
-  "message": "limit must not be less than 1",
-  "details": { "message": ["limit must not be less than 1"], "error": "Bad Request", "statusCode": 400 },
-  "timestamp": "2026-04-01T12:00:00.000Z"
-}
+{ "success": false, "statusCode": 400, "message": "...", "timestamp": "..." }
 ```
-
 | Codigo | Significado |
 |---|---|
-| 400 | Validacion fallida (parametros invalidos, archivo faltante) |
-| 404 | Recurso no encontrado (cliente, documento) |
-| 500 | Error interno del servidor |
+| 400 | Validacion fallida |
+| 401 | No autenticado / token expirado |
+| 403 | Sin permisos (rol insuficiente) |
+| 404 | Recurso no encontrado |
+| 409 | Conflicto (duplicado) |
+| 500 | Error interno |

@@ -26,7 +26,14 @@ cd apps/backend
 npx prisma migrate deploy
 npx prisma generate
 
-# 5. Levantar todo
+# 5. Crear usuario admin
+npx ts-node scripts/seed-admin.ts
+# → admin@cable.local / Admin1234!
+
+# 6. Crear planes base (opcional)
+npx ts-node scripts/seed-plans.ts
+
+# 7. Levantar todo
 cd ../..
 pnpm dev
 ```
@@ -52,6 +59,7 @@ pnpm dev
 | PORT | No | 3000 | Puerto del backend |
 | NODE_ENV | No | development | Entorno (development / production) |
 | FRONTEND_URL | Si | http://localhost:5174 | URL del frontend para CORS |
+| JWT_SECRET | Si | cable-tracking-secret-dev | Secret para firmar tokens JWT. CAMBIAR en produccion |
 
 ### Frontend
 

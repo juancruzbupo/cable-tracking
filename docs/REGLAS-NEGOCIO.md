@@ -2,153 +2,127 @@
 
 ## Calculo de deuda
 
-La deuda se calcula en runtime (no se persiste) via `calculateDebt()` en `clients.service.ts`.
+La deuda se calcula **por suscripcion** (no por cliente) en `calculateSubDebt()`.
 
 ### Algoritmo
 
-1. **Solo aplica a clientes ACTIVO con fechaAlta**. Clientes BAJA o sin fechaAlta tienen deuda = 0.
+1. Solo aplica a suscripciones ACTIVAS.
+2. Meses obligatorios: desde `fechaAlta` de la suscripcion hasta el mes actual.
+   - Si dia <= 15, el mes actual NO cuenta.
+3. Meses cubiertos = meses pagados (PaymentPeriod) + meses con promo MESES_GRATIS.
+   - Un mes cuenta como "gratis" solo si el mes COMPLETO cae dentro del periodo de la promo.
+   - No se duplica: si un mes esta pagado Y tiene promo, cuenta una sola vez.
+4. Deuda = meses desde ultimo cubierto + 1 hasta el mes actual.
+   - Huecos anteriores al ultimo cubierto se perdonan.
+5. `requiereCorte = cantidadDeuda > 1` (2+ meses = corte).
 
-2. **Rango de meses obligatorios**: desde `fechaAlta` hasta el mes actual.
-   - Si estamos a dia 15 o antes, el mes actual NO cuenta.
-   - Si estamos a dia 16 o despues, el mes actual SI cuenta.
+### Resumen por cliente
 
-3. **Calculo de deuda con pagos**:
-   - Se busca el ultimo mes pagado (el mas reciente en PaymentPeriod).
-   - La deuda son los meses desde `ultimoPago + 1` hasta el mes actual.
-   - Los huecos anteriores al ultimo pago se **perdonan**.
-   - Ejemplo: si pago enero y marzo, la deuda empieza en abril (febrero se perdona).
+El cliente agrega campos de resumen:
+- `cantidadDeuda`: peor caso entre sus suscripciones
+- `requiereCorte`: true si ALGUNA suscripcion requiere corte
+- `deudaCable` / `deudaInternet`: deuda especifica por servicio
+- `requiereCorteCable` / `requiereCorteInternet`: corte por servicio
 
-4. **Calculo de deuda sin pagos**:
-   - La deuda son todos los meses desde `fechaAlta` hasta el mes actual.
+### Cron nocturno
 
-5. **Umbral de corte**: `cantidadDeuda > 1` (2 o mas meses adeudados = requiere corte).
-
-### Ejemplo
-
-```
-Cliente: GARCIA ANA, alta: 2024-06-01, hoy: 2026-04-01 (dia 1, <= 15)
-
-Meses obligatorios: 2024-06 a 2026-03 (22 meses)
-Pagos: [2025-12]
-Ultimo pago: 2025-12
-Deuda desde: 2026-01
-
-Meses adeudados: [2026-01, 2026-02, 2026-03] = 3 meses
-requiereCorte: true (3 > 1)
-```
-
-### Campos que retorna calculateDebt()
-
-| Campo | Tipo | Descripcion |
-|---|---|---|
-| clientId | string | UUID del cliente |
-| codCli | string | Codigo del cliente |
-| nombreNormalizado | string | Nombre limpio |
-| estado | string | ACTIVO o BAJA |
-| fechaAlta | Date | Fecha de alta |
-| calle | string | Direccion |
-| mesesObligatorios | string[] | Todos los meses desde alta (para referencia visual) |
-| mesesPagados | string[] | Meses con pagos registrados |
-| mesesAdeudados | string[] | Meses que debe (desde ultimo pago + 1) |
-| cantidadDeuda | number | Cantidad de meses adeudados |
-| requiereCorte | boolean | true si cantidadDeuda > 1 |
+A las 5AM (Argentina), el cron recalcula deuda de todas las suscripciones activas:
+- Procesa en batches de 100
+- Actualiza `deudaCalculada`, `requiereCorte`, `ultimoCalculo` en cada suscripcion
+- No usa transaccion global (batches independientes)
 
 ---
 
 ## Importacion de datos
 
 ### Orden obligatorio
+clientes → ramitos → facturas (FK dependency).
 
-**clientes → ramitos → facturas**
+### Clientes (NO pisa)
+1. Lee `cod_cli` del Excel.
+2. Si existe por codigo → skip (o actualiza a BAJA si `indicaBaja`).
+3. Si es nuevo → crea con `codCli`, `nombreNormalizado`, `fechaAlta`, `calle`.
 
-Ramitos y facturas tienen FK a clientes. Si se importan antes, los codigos no matchean.
+### Ramitos/Facturas (SI pisa, excepto manuales)
+1. Borra todo del tipo EXCEPTO documentos con `numeroDocumento LIKE 'MANUAL-%'`.
+2. Carga mapa de clientes (1 query) + mapa de suscripciones.
+3. Detecta tipo de servicio (CABLE/INTERNET) por descripcion.
+4. Busca/crea suscripcion automaticamente.
+5. Batch insert documentos en chunks de 500.
+6. Batch insert periodos con `skipDuplicates`.
 
-### Clientes (NO pisa datos existentes)
-
-1. Lee `cod_cli` y `nombre` del Excel.
-2. Si `cod_cli` ya existe en la DB → skip (salvo que indique baja, entonces actualiza estado).
-3. Si es nuevo → crea el cliente con `codCli`, `nombreNormalizado`, `fechaAlta`, `calle`, `estado`.
-4. `normalizeName()` limpia el nombre y detecta flag `indicaBaja` (busca "DE BAJA", "RETIRADO", etc.).
-5. Timeout: 120 segundos.
-
-### Ramitos / Facturas (SI pisa — destructivo)
-
-1. **Borra todo** del tipo (RAMITO o FACTURA) incluyendo sus PaymentPeriods.
-2. Carga un mapa de todos los clientes por `codCli` (1 sola query).
-3. Para cada fila del Excel:
-   - Lee `cod_cli` → busca en el mapa.
-   - Si no encuentra → error, salta la fila.
-   - Recolecta datos del documento.
-4. Batch insert de documentos en chunks de 500 (`createMany`).
-5. Recupera los documentos creados para obtener sus IDs.
-6. Parsea periodos de cada `descripcionOriginal`.
-7. Batch insert de periodos con `skipDuplicates`.
-8. Timeout: 180 segundos.
-
-### Columnas del Excel
-
-El sistema busca multiples nombres por columna (case-insensitive):
-
-| Dato | Nombres posibles |
-|---|---|
-| Codigo cliente | `cod_cli`, `codigo`, `cod`, `id`, `codigo_cliente` |
-| Nombre | `nombre`, `nombre_cliente`, `cliente`, `name` |
-| Fecha alta | `fecalta`, `fecha_alta`, `alta`, `fecha_ingreso` |
-| Calle | `calle`, `direccion`, `domicilio`, `dir` |
-| Fecha documento | `fecha`, `fecha_documento`, `date` |
-| Nro. comprobante | `nro_comp`, `comprob`, `comprobante`, `numero` |
-| Descripcion | `descrip`, `descripcion`, `desc`, `detalle` |
-
-### Status de importacion
-
-| Status | Significado |
-|---|---|
-| SUCCESS | Todas las filas se procesaron correctamente |
-| PARTIAL | Algunas filas fallaron (los errores se guardan en `ImportLog.errors`) |
-| FAILED | Ninguna fila se proceso correctamente |
+### Deteccion de servicio
+- INTERNET: "megas", "internet", "mbps", "fibra"
+- CABLE: "tvcable", "tv cable", "cable"
+- Default: CABLE
 
 ---
 
-## Normalizacion de nombres
+## Promociones
 
-`normalizeName()` en `normalize-name.util.ts`:
+### Tipos
+| Tipo | Efecto en precio | Efecto en deuda |
+|---|---|---|
+| PORCENTAJE | Descuento % | No |
+| MONTO_FIJO | Descuento $ | No |
+| PRECIO_FIJO | Precio especial | No |
+| MESES_GRATIS | Precio = 0 | Si (mes cubierto) |
 
-1. Convierte a MAYUSCULAS.
-2. Detecta y remueve indicadores de baja ("DE BAJA", "RETIRADO", "CORTADO", etc.).
-3. Remueve ruido: megas, velocidades, fechas, notas de admin.
-4. Colapsa espacios multiples.
-5. Filtra palabras de 1 sola letra.
+### Prioridad (cuando hay multiples)
+1. MESES_GRATIS → precio 0, gana sobre todo
+2. PRECIO_FIJO → usa ese precio
+3. Mejor entre PORCENTAJE y MONTO_FIJO (mayor descuento)
 
-**Entrada:** `"GARCIA ANA BEATRIZ 6 megas DE BAJA RETIRO 10-2-26"`
-**Salida:** `{ nombreNormalizado: "GARCIA ANA BEATRIZ", indicaBaja: true, nombreOriginal: "GARCIA ANA BEATRIZ 6 megas DE BAJA RETIRO 10-2-26" }`
+### Scope
+- PLAN: aplica a todas las suscripciones del plan automaticamente
+- CLIENTE: se asigna manualmente a una suscripcion especifica
 
 ---
 
-## Parseo de periodos
+## Facturacion
 
-`parsePeriodsFromDescription()` en `parse-periods.util.ts`:
+### Tipo de comprobante
+| Emisor | Receptor | Tipo |
+|---|---|---|
+| Responsable Inscripto | Responsable Inscripto | Factura A |
+| Responsable Inscripto | Consumidor Final / Mono | Factura B |
+| Monotributista | Cualquiera | Factura C |
+| Mock (sin AFIP) | Cualquiera | Recibo X |
 
-Extrae periodos mensuales de texto libre. Busca patrones `{NombreMes}{Ano}`.
+### IVA
+- Responsable Inscripto: 21% sobre subtotal
+- Monotributista: 0% (precio final incluye IVA)
 
-**Ejemplos:**
-- `"TvCable Enero26 del 1 al 15"` → `[{year: 2026, month: 1}]`
-- `"6Megas Diciembre25"` → `[{year: 2025, month: 12}]`
-- `"Promo 3Megas Noviembre25"` → `[{year: 2025, month: 11}]`
+### Numeracion
+Correlativa por `puntoVenta + tipo`. El MockProvider consulta la tabla `Comprobante`.
 
-**Ignorados** (no generan periodos):
-- SUSCRIPCION
-- RECONEXION
-- PUNTO ADICIONAL
-- TRASLADO
-- CAMBIO DE MODEM
-- INSTALACION
+---
+
+## Autenticacion
+
+- JWT con 8 horas de expiracion.
+- Password hasheado con bcrypt (10 rounds).
+- Token en header `Authorization: Bearer <token>`.
+- 401 si token invalido/expirado → frontend hace logout automatico.
+- Guards globales: todos los endpoints protegidos excepto `/health` y `/auth/login`.
 
 ---
 
 ## Cache
 
-El dashboard tiene cache en memoria con TTL de 1 minuto:
-- `getDashboardMetrics()` — metricas generales
-- `getClientesParaCorte()` — lista de clientes para corte
+- Dashboard: metricas y lista corte cacheadas 1 minuto.
+- Se invalida al importar datos (clientes, ramitos, facturas).
+- Implementado en memoria en `DashboardService`.
 
-El cache se invalida automaticamente despues de cada importacion (clientes, ramitos o facturas).
+---
+
+## Audit log
+
+Todas las operaciones manuales se registran:
+- CLIENT_CREATED, CLIENT_DEACTIVATED, CLIENT_REACTIVATED
+- SUBSCRIPTION_DEACTIVATED, SUBSCRIPTION_REACTIVATED, SUBSCRIPTION_PLAN_UPDATED
+- PAYMENT_MANUAL_CREATED, PAYMENT_MANUAL_DELETED
+- NOTE_CREATED, NOTE_DELETED
+- PROMOTION_CREATED, PROMOTION_ASSIGNED, PROMOTION_REMOVED
+- COMPROBANTE_EMITIDO, COMPROBANTE_ANULADO
+- EMPRESA_CONFIG_UPDATED, CLIENT_FISCAL_UPDATED

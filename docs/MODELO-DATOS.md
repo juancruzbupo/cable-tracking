@@ -1,100 +1,237 @@
-# Modelo de Datos
+# Modelo de Datos (13 tablas)
 
 ## Diagrama de relaciones
 
 ```
-Client (1)
-  │
-  ├──< Document (N)       → FK: clientId + codCli denormalizado
-  │     │
-  │     └──< PaymentPeriod (N)  → FK: documentId + clientId + codCli
-  │
-  └──< PaymentPeriod (N)  → FK: clientId (acceso directo sin pasar por Document)
+User ──< ClientNote (userId)
+User ──< AuditLog (userId)
 
-ImportLog (independiente, sin FK)
+Client
+  ├──< Subscription (clientId) [UNIQUE: clientId+tipo]
+  │     ├──< Document (subscriptionId)
+  │     ├──< PaymentPeriod (subscriptionId)
+  │     ├──< ClientPromotion (subscriptionId)
+  │     └──< Comprobante (subscriptionId)
+  ├──< Document (clientId) [CASCADE]
+  ├──< PaymentPeriod (clientId) [CASCADE]
+  ├──< ClientNote (clientId) [CASCADE]
+  └──< Comprobante (clientId)
+
+ServicePlan
+  ├──< Subscription (planId)
+  └──< Promotion (planId)
+
+Promotion ──< ClientPromotion (promotionId) [CASCADE]
+Document ──< PaymentPeriod (documentId) [CASCADE]
+
+EmpresaConfig (singleton)
+ImportLog (independiente)
 ```
 
 ## Tablas
 
+### User
+Usuarios del sistema con autenticacion JWT.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| email | String | UNIQUE, login |
+| password | String | bcrypt hash |
+| name | String | Nombre para mostrar |
+| role | Role | ADMIN / OPERADOR / VISOR |
+| isActive | Boolean | Soft delete |
+
 ### Client
-Representa un abonado del servicio de cable/internet.
+Abonado del servicio de cable/internet.
 
-| Campo | Tipo | Constraints | Descripcion |
-|---|---|---|---|
-| id | UUID | PK | Identificador interno |
-| codCli | String | UNIQUE, NOT NULL | Codigo del sistema de gestion. Clave de match con Excel |
-| nombreOriginal | String | NOT NULL | Nombre tal como viene del Excel |
-| nombreNormalizado | String | NOT NULL | Nombre limpio (mayusculas, sin ruido) |
-| fechaAlta | Date | nullable | Fecha de alta del servicio |
-| estado | Enum | ACTIVO / BAJA | Estado actual del cliente |
-| calle | String | nullable | Direccion del cliente |
-| createdAt | DateTime | auto | Fecha de creacion del registro |
-| updatedAt | DateTime | auto | Ultima modificacion |
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| codCli | String | UNIQUE, clave de match con Excel |
+| nombreOriginal | String | Nombre tal como viene del Excel |
+| nombreNormalizado | String | Nombre limpio (mayusculas, sin ruido) |
+| fechaAlta | Date? | Fecha de alta del servicio |
+| estado | ClientStatus | ACTIVO / BAJA |
+| calle | String? | Direccion |
+| tipoDocumento | TipoDocumento? | CUIT / CUIL / DNI / CONSUMIDOR_FINAL |
+| numeroDocFiscal | String? | Numero de documento sin guiones |
+| condicionFiscal | CondicionFiscal | Default: CONSUMIDOR_FINAL |
+| razonSocial | String? | Para empresas |
+| telefono | String? | Contacto |
+| email | String? | Contacto |
 
-**Indices:** `estado`, `nombreNormalizado`, `codCli` (unique)
+### Subscription
+Servicio activo de un cliente. Un cliente puede tener maximo uno de cada tipo.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| clientId | UUID | FK → Client |
+| tipo | ServiceType | CABLE / INTERNET |
+| fechaAlta | Date | Inicio del servicio |
+| estado | ClientStatus | ACTIVO / BAJA |
+| planId | UUID? | FK → ServicePlan |
+| deudaCalculada | Int? | Cache: meses de deuda (actualizado por cron) |
+| requiereCorte | Boolean | Cache: true si deuda > 1 |
+| ultimoCalculo | DateTime? | Timestamp del ultimo recalculo |
+
+**UNIQUE**: `(clientId, tipo)` — un cliente no puede tener 2 suscripciones del mismo tipo.
+
+### ServicePlan
+Plan de servicio con precio.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| nombre | String | Ej: "Internet 100MB" |
+| tipo | ServiceType | CABLE / INTERNET |
+| precio | Decimal(10,2) | Precio mensual |
+| activo | Boolean | Soft delete |
 
 ### Document
-Representa una factura o remito importado del Excel.
+Factura o remito importado del Excel o generado manualmente.
 
-| Campo | Tipo | Constraints | Descripcion |
-|---|---|---|---|
-| id | UUID | PK | |
-| clientId | UUID | FK → Client.id, CASCADE | |
-| codCli | String | NOT NULL | Codigo de cliente (denormalizado para queries) |
-| tipo | Enum | RAMITO / FACTURA | Tipo de documento |
-| fechaDocumento | Date | nullable | Fecha de emision |
-| numeroDocumento | String | nullable | Numero de comprobante |
-| descripcionOriginal | String | nullable | Texto libre del Excel (de aca se extraen periodos) |
-| createdAt | DateTime | auto | |
-
-**Indices:** `tipo`, `clientId`, `(clientId, tipo)`, `codCli`
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| clientId | UUID | FK → Client (CASCADE) |
+| codCli | String | Codigo de cliente (denormalizado) |
+| subscriptionId | UUID? | FK → Subscription |
+| tipo | DocumentType | RAMITO / FACTURA |
+| fechaDocumento | Date? | Fecha de emision |
+| numeroDocumento | String? | Numero comprobante. `MANUAL-*` = pago manual |
+| descripcionOriginal | String? | Texto del Excel (se parsean periodos) |
 
 ### PaymentPeriod
-Registra que un cliente tiene cubierto un mes especifico, extraido de la descripcion del documento.
+Registra que un cliente tiene cubierto un mes especifico.
 
-| Campo | Tipo | Constraints | Descripcion |
-|---|---|---|---|
-| id | UUID | PK | |
-| clientId | UUID | FK → Client.id, CASCADE | |
-| codCli | String | NOT NULL | Codigo de cliente (denormalizado) |
-| documentId | UUID | FK → Document.id, CASCADE | Documento de origen |
-| periodo | Date | NOT NULL | Primer dia del mes cubierto |
-| year | Int | NOT NULL | Ano del periodo |
-| month | Int | NOT NULL | Mes del periodo (1-12) |
-| createdAt | DateTime | auto | |
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| clientId | UUID | FK → Client (CASCADE) |
+| codCli | String | Denormalizado |
+| documentId | UUID | FK → Document (CASCADE) |
+| subscriptionId | UUID? | FK → Subscription |
+| periodo | Date | Primer dia del mes cubierto |
+| year | Int | Ano |
+| month | Int | Mes (1-12) |
 
-**Constraint UNIQUE:** `(clientId, periodo, documentId)` — permite que el mismo periodo aparezca en distintos documentos del mismo cliente.
+**UNIQUE**: `(clientId, periodo, documentId)`
 
-**Indices:** `(clientId, periodo)`, `(clientId, year, month)`, `documentId`
+### Promotion
+Promocion que puede aplicar a un plan o a un cliente especifico.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| nombre | String | Nombre de la promo |
+| tipo | PromoType | PORCENTAJE / MONTO_FIJO / PRECIO_FIJO / MESES_GRATIS |
+| valor | Decimal(10,2) | Porcentaje (1-100), monto fijo, o 0 para MESES_GRATIS |
+| scope | PromoScope | PLAN (automatica) / CLIENTE (manual) |
+| fechaInicio | Date | Inicio del periodo |
+| fechaFin | Date | Fin del periodo |
+| activa | Boolean | Flag on/off |
+| planId | UUID? | FK → ServicePlan (solo si scope=PLAN) |
+
+### ClientPromotion
+Join table: asigna una promo scope=CLIENTE a una suscripcion.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| promotionId | UUID | FK → Promotion (CASCADE) |
+| subscriptionId | UUID | FK → Subscription (CASCADE) |
+| assignedBy | String | userId que la asigno |
+
+**UNIQUE**: `(promotionId, subscriptionId)`
+
+### Comprobante
+Comprobante fiscal (factura/recibo) con campos AFIP-ready.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| clientId | UUID | FK → Client |
+| subscriptionId | UUID? | FK → Subscription |
+| paymentPeriodId | String? | ID del pago que origino el comprobante |
+| tipo | TipoComprobante | FACTURA_A / FACTURA_B / FACTURA_C / RECIBO_X |
+| numero | Int | Numeracion correlativa |
+| puntoVenta | Int | Default 1 |
+| fecha | Date | Fecha de emision |
+| emisor* | String | Snapshot de datos del emisor al momento de emision |
+| receptor* | String | Snapshot de datos del receptor |
+| subtotal | Decimal | Monto sin IVA |
+| descuento | Decimal | Descuento aplicado |
+| iva | Decimal | IVA calculado |
+| total | Decimal | Monto final |
+| detalle | JSON | Array de lineas del comprobante |
+| estado | EstadoComprobante | PENDIENTE / EMITIDO / ANULADO / ERROR |
+| cae | String? | Codigo AFIP (null en mock) |
+| caeFechaVto | DateTime? | Vencimiento del CAE |
+| providerResponse | JSON? | Respuesta raw del proveedor |
+
+### EmpresaConfig
+Configuracion de la empresa emisora (singleton).
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| cuit | String | CUIT de la empresa |
+| razonSocial | String | Razon social |
+| condicionFiscal | String | "Responsable Inscripto" / "Monotributista" |
+| domicilioFiscal | String? | Domicilio fiscal |
+| puntoVenta | Int | Punto de venta AFIP |
+| providerName | String | "mock" / "tusFacturas" / etc |
+| providerApiKey | String? | API key (no se retorna en GET) |
+
+### ClientNote
+Notas de texto libre sobre un cliente.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| clientId | UUID | FK → Client (CASCADE) |
+| userId | UUID | FK → User |
+| content | String | Texto de la nota (max 1000) |
+
+### AuditLog
+Registro de acciones del sistema.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| userId | UUID | FK → User |
+| action | String | Accion realizada (ej: CLIENT_CREATED, PAYMENT_MANUAL_CREATED) |
+| entityType | String | Tipo de entidad (CLIENT, SUBSCRIPTION, PAYMENT, NOTE, etc) |
+| entityId | String | ID de la entidad afectada |
+| metadata | JSON? | Datos adicionales (before/after) |
 
 ### ImportLog
-Registro de cada importacion realizada.
+Registro de cada importacion de Excel.
 
 | Campo | Tipo | Descripcion |
 |---|---|---|
 | id | UUID | PK |
 | tipo | String | CLIENTES / RAMITOS / FACTURAS |
-| fileName | String | Nombre del archivo subido |
-| totalRows | Int | Filas totales en el Excel |
-| validRows | Int | Filas procesadas correctamente |
-| invalidRows | Int | Filas con errores |
-| newClients | Int | Clientes nuevos creados (solo para tipo CLIENTES) |
-| updatedClients | Int | Clientes actualizados a BAJA |
-| errors | JSON | Array de errores detallados |
+| fileName | String | Nombre del archivo |
+| totalRows | Int | Filas totales |
+| validRows | Int | Filas procesadas |
+| invalidRows | Int | Filas con error |
+| errors | JSON? | Array de errores detallados |
 | status | String | SUCCESS / PARTIAL / FAILED |
-| executedAt | DateTime | Fecha de ejecucion |
 
-## Cascading Deletes
+## Enums
 
-Borrar un `Client` elimina en cascada:
-1. Todos sus `Document`
-2. Todos sus `PaymentPeriod` (tanto los que van via Document como los directos)
-
-Borrar un `Document` elimina en cascada:
-1. Todos sus `PaymentPeriod`
-
-## Notas de diseno
-
-- **codCli denormalizado en Document y PaymentPeriod**: permite queries directas sin JOIN al Client. Se mantiene consistente porque la importacion siempre copia `client.codCli`.
-- **PaymentPeriod tiene FK tanto a Client como a Document**: el FK a Client es redundante (se podria llegar via Document) pero se mantiene por performance en `calculateDebt()`.
-- **Campos snake_case en DB, camelCase en TypeScript**: via `@@map` y `@map` de Prisma.
+| Enum | Valores |
+|---|---|
+| ClientStatus | ACTIVO, BAJA |
+| DocumentType | RAMITO, FACTURA |
+| ServiceType | CABLE, INTERNET |
+| Role | ADMIN, OPERADOR, VISOR |
+| PromoType | PORCENTAJE, MONTO_FIJO, MESES_GRATIS, PRECIO_FIJO |
+| PromoScope | PLAN, CLIENTE |
+| TipoDocumento | CUIT, CUIL, DNI, CONSUMIDOR_FINAL |
+| CondicionFiscal | RESPONSABLE_INSCRIPTO, MONOTRIBUTISTA, CONSUMIDOR_FINAL, EXENTO |
+| TipoComprobante | FACTURA_A, FACTURA_B, FACTURA_C, RECIBO_X |
+| EstadoComprobante | PENDIENTE, EMITIDO, ANULADO, ERROR |
