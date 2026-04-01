@@ -156,3 +156,4 @@
 - `@Public()`: excluye endpoints del guard (health, login)
 - Menu del frontend se filtra con `hasRole()` del AuthContext
 - Botones de accion se ocultan/muestran segun rol
+- Todos los endpoints GET tienen `@Roles()` explicito (`ADMIN,OPERADOR,VISOR` para lectura publica)

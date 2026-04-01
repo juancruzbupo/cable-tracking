@@ -20,7 +20,7 @@ Comunicacion: REST API con JWT Bearer auth. En dev, Vite proxea `/api` a `localh
 ```
 User (id, email, password, name, role[ADMIN|OPERADOR|VISOR], isActive)
 
-Client (id, codCli[UNIQUE], nombreOriginal, nombreNormalizado, fechaAlta, estado, calle, datos fiscales, tipoComprobante)
+Client (id, codCli[UNIQUE], nombreOriginal, nombreNormalizado, fechaAlta, estado, calle, datos fiscales, tipoComprobante[TipoEmision])
   ├─ Subscription (id, clientId, tipo[CABLE|INTERNET], fechaAlta, estado, planId?, deudaCalculada, requiereCorte)
   │    ├─ Document (id, clientId, codCli, subscriptionId?, tipo[RAMITO|FACTURA], fechaDocumento, descripcionOriginal)
   │    │    └─ PaymentPeriod (id, clientId, codCli, documentId, subscriptionId?, periodo, year, month)
@@ -172,7 +172,7 @@ JWT_SECRET=cable-tracking-secret-dev-change-in-production
 ## Documentacion
 
 Ver `docs/` para documentacion detallada:
-- `MODELO-DATOS.md` — Diagrama y detalle de las 13 tablas
+- `MODELO-DATOS.md` — Diagrama y detalle de las 16 tablas
 - `REGLAS-NEGOCIO.md` — Deuda, importacion, promos, facturacion
 - `API.md` — Referencia completa de endpoints
 - `DEPLOY.md` — Setup local y produccion

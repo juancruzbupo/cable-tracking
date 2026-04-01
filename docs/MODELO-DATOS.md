@@ -68,6 +68,7 @@ Abonado del servicio de cable/internet.
 | localidad | String? | Localidad |
 | provincia | String? | Default: "Entre Ríos" |
 | zona | String? | Zona de cobranza (para recorridos) |
+| tipoComprobante | TipoEmision | Default: RAMITO. RAMITO = sin factura fiscal, FACTURA = emite comprobante |
 
 ### Subscription
 Servicio activo de un cliente. Un cliente puede tener maximo uno de cada tipo.
