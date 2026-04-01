@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Typography, DatePicker, Row, Col, Statistic, Progress, Table, Button, Space, Spin, message } from 'antd';
 import { BarChartOutlined, ArrowUpOutlined, ArrowDownOutlined, FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function ReportesPage() {
   const [month, setMonth] = useState<dayjs.Dayjs>(dayjs().subtract(1, 'month'));
   const [report, setReport] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [batchLoading, setBatchLoading] = useState(false);
   const { hasRole } = useAuth();
 
@@ -26,6 +26,9 @@ export default function ReportesPage() {
     setMonth(d);
     loadReport(d);
   };
+
+  // Auto-load on mount
+  useEffect(() => { loadReport(month); }, []);
 
   const handleBatch = async () => {
     try {

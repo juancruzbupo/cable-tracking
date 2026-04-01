@@ -191,12 +191,14 @@ export default function ClientsPage() {
               title: '',
               width: 50,
               render: (_: unknown, r: ClientWithDebt) => (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() => detail.openDetail(r.id)}
-                />
+                <Tooltip title="Ver detalle">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={() => detail.openDetail(r.id)}
+                  />
+                </Tooltip>
               ),
             },
           ]}

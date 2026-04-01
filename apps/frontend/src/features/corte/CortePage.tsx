@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button, Space, message } from 'antd';
+import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button, Space, Tooltip, message } from 'antd';
 import { WarningOutlined, ScissorOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import type { SorterResult } from 'antd/es/table/interface';
 import * as XLSX from 'xlsx';
@@ -105,13 +105,15 @@ export default function CortePage() {
             </Button>
           )}
           {canExport && (
-            <Button
-              icon={<FileExcelOutlined />}
-              onClick={handleExportCorte}
-              disabled={clients.length === 0}
-            >
-              Exportar Excel
-            </Button>
+            <Tooltip title={clients.length === 0 ? 'No hay clientes para exportar' : ''}>
+              <Button
+                icon={<FileExcelOutlined />}
+                onClick={handleExportCorte}
+                disabled={clients.length === 0}
+              >
+                Exportar Excel
+              </Button>
+            </Tooltip>
           )}
           {canExport && (
             <Button

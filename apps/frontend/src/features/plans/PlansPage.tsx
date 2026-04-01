@@ -49,7 +49,7 @@ export default function PlansPage() {
           )},
           { title: 'Editar precio', width: 140, render: (_: unknown, r: ServicePlan) => (
             <InputNumber size="small" value={Number(r.precio)} min={0} step={1000} style={{ width: 120 }}
-              onBlur={(e) => { const v = Number(e.target.value); if (!isNaN(v)) handleUpdate(r.id, { precio: v }); }} />
+              onBlur={(e) => { const v = Number(e.target.value); if (!isNaN(v) && v !== Number(r.precio)) { message.loading('Guardando...', 1); handleUpdate(r.id, { precio: v }); } }} />
           )},
         ]} />
       </Card>

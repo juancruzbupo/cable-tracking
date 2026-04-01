@@ -156,7 +156,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
           <Space>
             <Select placeholder="Servicio" style={{ width: 140 }} value={paySubId || undefined} onChange={setPaySubId}
               options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
-            <DatePicker picker="month" value={payMonth} onChange={setPayMonth} disabledDate={(d) => d.isAfter(dayjs())} format="MMM YYYY" />
+            <DatePicker picker="month" value={payMonth} onChange={setPayMonth} disabledDate={(d) => d.isAfter(dayjs())} format="MMM YYYY" placeholder="Mes a pagar" />
             <Button type="primary" size="small" onClick={handlePayment} disabled={!payMonth || !paySubId}>Registrar</Button>
           </Space>
         </>
@@ -179,7 +179,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
                   <Space>
                     <Typography.Text strong style={{ fontSize: 12 }}>{n.user.name}</Typography.Text>
                     <Typography.Text type="secondary" style={{ fontSize: 11 }}>{dayjs(n.createdAt).fromNow()}</Typography.Text>
-                    {isAdmin && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={async () => { await clientsApi.deleteNote(data.clientId, n.id); loadNotes(); }} />}
+                    {isAdmin && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={async () => { try { await clientsApi.deleteNote(data.clientId, n.id); loadNotes(); } catch (err) { message.error('Error al eliminar nota'); } }} />}
                   </Space>
                   <div style={{ fontSize: 13 }}>{n.content}</div>
                 </div>
