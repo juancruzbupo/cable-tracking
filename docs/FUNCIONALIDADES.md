@@ -97,6 +97,7 @@
 - **Crecimiento**: altas, bajas y neto del mes, comparacion con mes anterior.
 - **Penetracion internet**: % de clientes con internet, oportunidad (clientes solo cable).
 - **Morosidad por zona**: tabla con distribucion de deuda por zona geografica.
+- **Tickets de soporte**: abiertos, resueltos hoy, sin resolver +48hs (alerta), tiempo promedio resolucion, tabla de 5 tickets mas antiguos.
 - Ultimas importaciones con status.
 - **Cache 1 minuto**, invalidado al importar.
 

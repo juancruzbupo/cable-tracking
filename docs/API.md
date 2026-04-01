@@ -103,6 +103,7 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 | GET | /dashboard/riesgo | todos | Clientes a exactamente umbralCorte meses de deuda |
 | GET | /dashboard/crecimiento | todos | Altas/bajas del mes, penetracion internet |
 | GET | /dashboard/zonas | todos | Distribucion morosidad por zona geografica |
+| GET | /dashboard/tickets | todos | Metricas tickets: abiertos, resueltos hoy, +48hs sin resolver, prom. resolucion, top 5 antiguos |
 
 ## Export
 | Metodo | Ruta | Roles | Descripcion |
