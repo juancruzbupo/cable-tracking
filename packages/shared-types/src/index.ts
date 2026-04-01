@@ -16,6 +16,9 @@ export type TipoDocumento = 'CUIT' | 'CUIL' | 'DNI' | 'CONSUMIDOR_FINAL';
 export type CondicionFiscal = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTISTA' | 'CONSUMIDOR_FINAL' | 'EXENTO';
 export type TipoComprobante = 'FACTURA_A' | 'FACTURA_B' | 'FACTURA_C' | 'RECIBO_X';
 export type EstadoComprobante = 'PENDIENTE' | 'EMITIDO' | 'ANULADO' | 'ERROR';
+export type EquipmentStatus = 'EN_DEPOSITO' | 'ASIGNADO' | 'EN_REPARACION' | 'DE_BAJA';
+export type TicketStatus = 'ABIERTO' | 'RESUELTO';
+export type TicketType = 'SIN_SENIAL' | 'LENTITUD_INTERNET' | 'RECONEXION' | 'INSTALACION' | 'CAMBIO_EQUIPO' | 'OTRO';
 
 // ── Auth ─────────────────────────────────────────────────────
 
@@ -56,6 +59,24 @@ export interface Client {
   razonSocial?: string | null;
   telefono?: string | null;
   email?: string | null;
+  tipoComprobante?: TipoComprobante;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Subscription ────────────────────────────────────────────
+
+export interface Subscription {
+  id: string;
+  clientId: string;
+  tipo: ServiceType;
+  fechaAlta: string;
+  estado: ClientStatus;
+  planId: string | null;
+  deudaCalculada: number;
+  requiereCorte: boolean;
+  ultimoCalculo: string | null;
+  plan?: ServicePlan | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -273,4 +294,63 @@ export interface Pagination {
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: Pagination;
+}
+
+// ── Equipment ───────────────────────────────────────────────
+
+export interface Equipment {
+  id: string;
+  tipo: string;
+  marca: string | null;
+  modelo: string | null;
+  numeroSerie: string | null;
+  estado: EquipmentStatus;
+  notas: string | null;
+  assignments?: EquipmentAssignment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentAssignment {
+  id: string;
+  equipmentId: string;
+  clientId: string;
+  fechaInstalacion: string;
+  fechaRetiro: string | null;
+  notas: string | null;
+  equipment?: Equipment;
+  client?: { id: string; nombreNormalizado: string; codCli: string };
+  createdAt: string;
+}
+
+// ── Tickets ─────────────────────────────────────────────────
+
+export interface Ticket {
+  id: string;
+  clientId: string;
+  tipo: TicketType;
+  descripcion: string | null;
+  estado: TicketStatus;
+  notas: string | null;
+  creadoPor: string;
+  resuelto: string | null;
+  client?: { id: string; nombreNormalizado: string; codCli: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── EmpresaConfig ───────────────────────────────────────────
+
+export interface EmpresaConfig {
+  id: string;
+  cuit: string;
+  razonSocial: string;
+  condicionFiscal: string;
+  domicilio: string | null;
+  puntoVenta: number;
+  providerName: string;
+  umbralCorte: number;
+  tfUsertoken: string | null;
+  tfApikey: string | null;
+  tfApitoken: string | null;
 }

@@ -118,8 +118,9 @@ export class TusFacturasProvider implements IFiscalProvider {
     return true;
   }
 
-  async getUltimoNumero(): Promise<number> {
-    return 0; // TusFacturas maneja numeración automática
+  async getUltimoNumero(_puntoVenta: number, _tipo: TipoComprobante): Promise<number> {
+    // TusFacturas maneja numeración automática; el número real viene en la respuesta de emitirComprobante
+    return 0;
   }
 
   private mapTipoComprobante(tipo: TipoComprobante): string {

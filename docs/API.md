@@ -58,6 +58,24 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 | POST | /clients/:id/subscriptions/:subId/promotions | ADMIN,OPER | Asignar promo `{ promotionId }` |
 | DELETE | /clients/:id/subscriptions/:subId/promotions/:promoId | ADMIN | Desasignar promo |
 
+## Equipos del cliente
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /clients/:id/equipment | todos | Equipos asignados al cliente |
+| POST | /clients/:id/equipment | ADMIN,OPER | Asignar equipo `{ equipmentId, notas? }` |
+| PATCH | /clients/:id/equipment/:assignmentId/retirar | ADMIN,OPER | Retirar equipo `{ notas? }` |
+
+## Tickets del cliente
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /clients/:id/tickets | todos | Tickets del cliente |
+| POST | /clients/:id/tickets | ADMIN,OPER | Crear ticket `{ tipo, descripcion? }` |
+
+## Config comprobante del cliente
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| PATCH | /clients/:id/comprobante-config | ADMIN,OPER | Tipo comprobante `{ tipoComprobante }` |
+
 ## Documents
 | Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
@@ -67,7 +85,9 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 ## Import
 | Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
-| POST | /import/preview/:tipo | ADMIN | Preview archivo Excel |
+| POST | /import/preview/clientes | ADMIN | Preview clientes Excel |
+| POST | /import/preview/ramitos | ADMIN | Preview ramitos Excel |
+| POST | /import/preview/facturas | ADMIN | Preview facturas Excel |
 | POST | /import/clientes | ADMIN | Importar clientes |
 | POST | /import/ramitos | ADMIN | Importar ramitos |
 | POST | /import/facturas | ADMIN | Importar facturas |
@@ -118,10 +138,27 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 | GET | /billing/report | ADMIN,OPER | Reporte cobranza `?month,year` |
 | GET | /billing/corte/print | ADMIN,OPER | PDF lista corte |
 
+## Equipment
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /equipment | ADMIN,OPER | Lista equipos `?tipo,estado,search` |
+| GET | /equipment/stats | ADMIN,OPER | Estadisticas por estado |
+| GET | /equipment/:id | ADMIN,OPER | Detalle con historial de asignaciones |
+| POST | /equipment | ADMIN | Crear equipo `{ tipo, marca?, modelo?, numeroSerie?, notas? }` |
+| PATCH | /equipment/:id | ADMIN | Editar equipo `{ marca?, modelo?, notas?, estado? }` |
+
+## Tickets
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /tickets | ADMIN,OPER | Lista tickets `?estado,tipo,clientId,page,limit` |
+| GET | /tickets/stats | ADMIN,OPER | Estadisticas (abiertos, resueltos, tiempo promedio resolucion) |
+| PATCH | /tickets/:id/resolver | ADMIN,OPER | Resolver ticket `{ notas? }` |
+
 ## Fiscal
 | Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|
 | GET | /fiscal/config | ADMIN | Config empresa |
+| GET | /fiscal/config/test | ADMIN | Test conexion con proveedor fiscal |
 | PATCH | /fiscal/config | ADMIN | Actualizar config |
 | GET | /fiscal/comprobantes | ADMIN,OPER | Lista `?clientId,estado,tipo,page,limit` |
 | GET | /fiscal/comprobantes/:id | ADMIN,OPER | Detalle |

@@ -33,13 +33,19 @@ export class DashboardService {
     this.cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
   }
 
+  /** Carga umbralCorte una sola vez (cacheado junto con el resto) */
+  private async getUmbralCorte(): Promise<number> {
+    const config = await this.prisma.empresaConfig.findFirst({ select: { umbralCorte: true } });
+    return config?.umbralCorte ?? 1;
+  }
+
   // ── Existing endpoints ───────────────────────────────────
 
   async getDashboardMetrics() {
     const cached = this.getCached('metrics');
     if (cached) return cached;
 
-    const [totalClients, activeClients, bajaClients, debtStats, docCounts, recentImports] =
+    const [totalClients, activeClients, bajaClients, debtStats, docCounts, recentImports, umbralCorte] =
       await Promise.all([
         this.prisma.client.count(),
         this.prisma.client.count({ where: { estado: ClientStatus.ACTIVO } }),
@@ -47,11 +53,8 @@ export class DashboardService {
         this.clientsService.getDebtStats(),
         this.getDocumentCounts(),
         this.getRecentImports(),
+        this.getUmbralCorte(),
       ]);
-
-    // Quick MRR and risk for the main dashboard
-    const config = await this.prisma.empresaConfig.findFirst();
-    const umbralCorte = config?.umbralCorte ?? 1;
     const activeSubs = await this.prisma.subscription.count({ where: { estado: ClientStatus.ACTIVO } });
     const subsWithPlan = await this.prisma.subscription.findMany({
       where: { estado: ClientStatus.ACTIVO, planId: { not: null } },
@@ -210,8 +213,7 @@ export class DashboardService {
   // ── New: Riesgo ──────────────────────────────────────────
 
   async getRiesgo() {
-    const config = await this.prisma.empresaConfig.findFirst();
-    const umbralCorte = config?.umbralCorte ?? 1;
+    const umbralCorte = await this.getUmbralCorte();
 
     const subs = await this.prisma.subscription.findMany({
       where: { estado: ClientStatus.ACTIVO, deudaCalculada: umbralCorte },
@@ -297,8 +299,7 @@ export class DashboardService {
   // ── New: Zonas ───────────────────────────────────────────
 
   async getZonas() {
-    const config = await this.prisma.empresaConfig.findFirst();
-    const umbralCorte = config?.umbralCorte ?? 1;
+    const umbralCorte = await this.getUmbralCorte();
 
     const clients = await this.prisma.client.findMany({
       where: { estado: ClientStatus.ACTIVO },

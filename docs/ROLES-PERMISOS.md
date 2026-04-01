@@ -108,12 +108,35 @@
 | Anular comprobante | Si | No | No |
 | Descargar PDF | Si | Si | No |
 
+### Equipos
+
+| Accion | ADMIN | OPERADOR | VISOR |
+|---|---|---|---|
+| Ver inventario de equipos | Si | Si | No |
+| Ver estadisticas de equipos | Si | Si | No |
+| Crear equipo | Si | No | No |
+| Editar equipo | Si | No | No |
+| Ver equipos del cliente | Si | Si | Si |
+| Asignar equipo a cliente | Si | Si | No |
+| Retirar equipo de cliente | Si | Si | No |
+
+### Tickets de soporte
+
+| Accion | ADMIN | OPERADOR | VISOR |
+|---|---|---|---|
+| Ver tickets (listado global) | Si | Si | No |
+| Ver estadisticas de tickets | Si | Si | No |
+| Ver tickets del cliente | Si | Si | Si |
+| Crear ticket | Si | Si | No |
+| Resolver ticket | Si | Si | No |
+
 ### Configuracion fiscal
 
 | Accion | ADMIN | OPERADOR | VISOR |
 |---|---|---|---|
 | Ver configuracion | Si | No | No |
 | Editar configuracion | Si | No | No |
+| Test conexion proveedor | Si | No | No |
 
 ### Dashboard y reportes
 

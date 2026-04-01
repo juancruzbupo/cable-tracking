@@ -20,8 +20,8 @@ cable-tracking/
 ├── apps/
 │   ├── backend/
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma          → 13 modelos, 8 enums
-│   │   │   └── migrations/            → 9 migraciones
+│   │   │   ├── schema.prisma          → 16 modelos, 13 enums
+│   │   │   └── migrations/            → 13+ migraciones
 │   │   ├── scripts/                   → seed-admin, seed-plans, migrate-subscriptions
 │   │   └── src/
 │   │       ├── main.ts                → Bootstrap (CORS, Swagger, ValidationPipe, GlobalExceptionFilter)
@@ -42,14 +42,16 @@ cable-tracking/
 │   │           ├── plans/             → PlansService CRUD
 │   │           ├── promotions/        → PromotionsService CRUD + asignacion
 │   │           ├── billing/           → BillingService + PdfGeneratorService
-│   │           ├── fiscal/            → FiscalService + MockFiscalProvider
+│   │           ├── fiscal/            → FiscalService + MockFiscalProvider + TusFacturasProvider
+│   │           ├── equipment/         → EquipmentService CRUD + asignacion/retiro
+│   │           ├── tickets/           → TicketsService CRUD + resolucion + estadisticas
 │   │           └── scheduler/         → Cron job recalculo deuda
 │   └── frontend/
 │       └── src/
 │           ├── context/AuthContext.tsx → Token, login, logout, hasRole
-│           ├── components/            → ErrorBoundary, CreateClientModal
+│           ├── shared/                → ErrorBoundary, utils (WhatsApp)
+│           ├── features/              → Feature folders (14 modulos)
 │           ├── hooks/                 → useClients, useClientDetail, useDebounce
-│           ├── pages/                 → 12 paginas
 │           ├── services/api.ts        → Axios centralizado con Bearer interceptor
 │           └── types/index.ts         → Interfaces compartidas
 ├── docs/                              → Documentacion del sistema
@@ -64,7 +66,7 @@ AppModule
 ├── PrismaModule (global)
 ├── AuditModule (global)
 ├── AuthModule → UsersModule
-├── ClientsModule → PromotionsModule, FiscalModule
+├── ClientsModule → PromotionsModule, FiscalModule, EquipmentModule, TicketsModule
 ├── DocumentsModule
 ├── ImportModule → DashboardModule
 ├── DashboardModule → ClientsModule
@@ -73,6 +75,8 @@ AppModule
 ├── PromotionsModule
 ├── BillingModule → ClientsModule
 ├── FiscalModule
+├── EquipmentModule
+├── TicketsModule
 └── SchedulerModule → ClientsModule
 ```
 

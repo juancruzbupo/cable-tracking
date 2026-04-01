@@ -15,24 +15,28 @@ apps/frontend/  → React 18 + TypeScript + Vite + Ant Design 5
 
 Comunicacion: REST API con JWT Bearer auth. En dev, Vite proxea `/api` a `localhost:3000`. Prefix global de backend: `/api`.
 
-## Modelo de datos (13 tablas)
+## Modelo de datos (16 tablas)
 
 ```
 User (id, email, password, name, role[ADMIN|OPERADOR|VISOR], isActive)
 
-Client (id, codCli[UNIQUE], nombreOriginal, nombreNormalizado, fechaAlta, estado, calle, datos fiscales)
+Client (id, codCli[UNIQUE], nombreOriginal, nombreNormalizado, fechaAlta, estado, calle, datos fiscales, tipoComprobante)
   ├─ Subscription (id, clientId, tipo[CABLE|INTERNET], fechaAlta, estado, planId?, deudaCalculada, requiereCorte)
   │    ├─ Document (id, clientId, codCli, subscriptionId?, tipo[RAMITO|FACTURA], fechaDocumento, descripcionOriginal)
   │    │    └─ PaymentPeriod (id, clientId, codCli, documentId, subscriptionId?, periodo, year, month)
   │    ├─ ClientPromotion (id, promotionId, subscriptionId, assignedBy)
   │    └─ Comprobante (id, clientId, subscriptionId?, tipo, numero, montos, estado, cae?)
   ├─ ClientNote (id, clientId, userId, content)
+  ├─ EquipmentAssignment (id, equipmentId, clientId, fechaInstalacion, fechaRetiro?)
+  ├─ Ticket (id, clientId, tipo, descripcion?, estado, notas, creadoPor, resuelto?)
   └─ AuditLog (id, userId, action, entityType, entityId, metadata)
+
+Equipment (id, tipo, marca?, modelo?, numeroSerie[UNIQUE], estado[EN_DEPOSITO|ASIGNADO|EN_REPARACION|DE_BAJA])
 
 ServicePlan (id, nombre, tipo[CABLE|INTERNET], precio, activo)
   └─ Promotion (id, nombre, tipo, valor, scope[PLAN|CLIENTE], fechaInicio, fechaFin, planId?)
 
-EmpresaConfig (id, cuit, razonSocial, condicionFiscal, providerName[mock|...])
+EmpresaConfig (id, cuit, razonSocial, condicionFiscal, providerName[mock|tusFacturas], umbralCorte)
 ImportLog (id, tipo, fileName, totalRows, validRows, invalidRows, errors, status)
 ```
 
@@ -53,7 +57,7 @@ Decorator `@Roles('ADMIN', 'OPERADOR')` para restringir por rol.
 
 Credenciales iniciales: `admin@cable.local` / `Admin1234!`
 
-## Modulos del backend (13)
+## Modulos del backend (15)
 
 ```
 src/
@@ -66,7 +70,7 @@ src/
 └── modules/
     ├── auth/            → Login JWT, @Public, @Roles, JwtAuthGuard, RolesGuard, CRUD usuarios
     ├── users/           → UsersService (findByEmail, create, updateRole, changePassword)
-    ├── clients/         → CRUD clientes + calculateDebt por suscripcion + operaciones manuales (alta, baja, pagos, notas, historial, fiscal)
+    ├── clients/         → CRUD clientes + DebtService + operaciones manuales (alta, baja, pagos, notas, historial, fiscal)
     ├── import/          → Import Excel (clientes/ramitos/facturas) con batch inserts, preserva pagos manuales
     ├── documents/       → GET /documents con filtros y paginacion
     ├── dashboard/       → Metricas, corte, tendencia 12m, MRR, riesgo, crecimiento, zonas (cache 1 min)
@@ -74,33 +78,37 @@ src/
     ├── plans/           → CRUD planes de servicio (nombre, tipo, precio)
     ├── promotions/      → CRUD promos (PORCENTAJE/MONTO_FIJO/PRECIO_FIJO/MESES_GRATIS) + asignacion
     ├── billing/         → Factura PDF individual/masiva, reporte cobranza, lista corte PDF
-    ├── fiscal/          → Config empresa, comprobantes, MockFiscalProvider (provider pattern para AFIP)
-    └── scheduler/       → Cron 5AM ARG recalcula deuda de todas las suscripciones activas
+    ├── fiscal/          → Config empresa, comprobantes, MockFiscalProvider + TusFacturasProvider
+    ├── equipment/       → Inventario de equipos, asignacion/retiro a clientes
+    ├── tickets/         → Tickets de soporte tecnico, resolucion, estadisticas
+    └── scheduler/       → Cron 5AM ARG recalcula deuda de todas las suscripciones activas (con promos)
 ```
 
-## Paginas del frontend (12)
+## Paginas del frontend (14)
 
 ```
 src/
 ├── App.tsx              → AuthProvider + ProtectedRoute + Layout con menu role-based
 ├── context/AuthContext   → Token localStorage, auto-logout en 401, hasRole()
-├── components/          → ErrorBoundary, CreateClientModal
+├── shared/              → ErrorBoundary, utils (WhatsApp)
 ├── hooks/               → useClients, useClientDetail, useDebounce
-├── pages/
-│   ├── LoginPage        → Login con email/password
-│   ├── DashboardPage    → Metricas, pie chart, ultimas importaciones
-│   ├── ClientsPage      → Tabla + filtros + Drawer detalle (deuda por servicio, pagos, notas, historial, promos, fiscal)
-│   ├── ImportPage       → Upload Excel por tipo (preview → confirmar) + historial
-│   ├── DocumentsPage    → Tabla paginada de ramitos/facturas
-│   ├── CortePage        → Clientes para corte con desglose cable/internet + export Excel/PDF
-│   ├── ReportesPage     → Reporte cobranza mensual + facturas masivas
-│   ├── PlansPage        → CRUD planes (solo ADMIN)
-│   ├── PromotionsPage   → CRUD promos con tabs (vigentes/vencidas) + asignacion
-│   ├── UsersPage        → Gestion usuarios (solo ADMIN)
-│   ├── ComprobantesPage → Tabla comprobantes + emision masiva + PDF
-│   └── FiscalConfigPage → Config empresa + proveedor fiscal (solo ADMIN)
+├── features/
+│   ├── auth/LoginPage        → Login con email/password
+│   ├── dashboard/DashboardPage → Metricas, MRR, tendencia, riesgo, crecimiento, zonas
+│   ├── clients/ClientsPage   → Tabla + filtros + Drawer detalle (deuda, pagos, notas, historial, promos, fiscal, equipos, tickets)
+│   ├── import/ImportPage     → Upload Excel por tipo (preview → confirmar) + historial
+│   ├── documents/DocumentsPage → Tabla paginada de ramitos/facturas
+│   ├── corte/CortePage       → Clientes para corte con desglose cable/internet + export Excel/PDF + WhatsApp
+│   ├── reports/ReportesPage  → Reporte cobranza mensual + facturas masivas
+│   ├── plans/PlansPage       → CRUD planes (solo ADMIN)
+│   ├── promotions/PromotionsPage → CRUD promos con tabs (vigentes/vencidas) + asignacion
+│   ├── users/UsersPage       → Gestion usuarios (solo ADMIN)
+│   ├── fiscal/ComprobantesPage → Tabla comprobantes + emision masiva + PDF
+│   ├── fiscal/FiscalConfigPage → Config empresa + proveedor fiscal (solo ADMIN)
+│   ├── equipment/EquipmentPage → Inventario de equipos + asignacion
+│   └── tickets/TicketsPage   → Tickets de soporte + estadisticas
 ├── services/api.ts      → Axios con Bearer interceptor + getErrorMessage helper
-└── types/index.ts       → Interfaces TypeScript compartidas
+└── types/index.ts       → Re-export de @cable-tracking/shared-types
 ```
 
 ## Regla central de deuda

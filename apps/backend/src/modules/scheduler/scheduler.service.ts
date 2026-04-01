@@ -33,6 +33,8 @@ export class SchedulerService {
       include: {
         client: { select: { id: true, codCli: true, nombreNormalizado: true, estado: true, fechaAlta: true, calle: true } },
         paymentPeriods: { select: { year: true, month: true } },
+        plan: { include: { promotions: { where: { activa: true, tipo: 'MESES_GRATIS' as const } } } },
+        clientPromotions: { include: { promotion: { select: { id: true, nombre: true, tipo: true, valor: true, fechaInicio: true, fechaFin: true } } } },
       },
     });
 
@@ -42,7 +44,15 @@ export class SchedulerService {
     for (let i = 0; i < subs.length; i += BATCH) {
       const batch = subs.slice(i, i + BATCH);
       const updates = batch.map((sub) => {
-        const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, [], umbralCorte);
+        const promosGratis = [
+          ...(sub.plan?.promotions || [])
+            .filter((p) => p.tipo === 'MESES_GRATIS')
+            .map((p) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo as any, valor: Number(p.valor), fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })),
+          ...(sub.clientPromotions || [])
+            .filter((cp) => cp.promotion.tipo === 'MESES_GRATIS')
+            .map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo as any, valor: Number(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
+        ];
+        const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, promosGratis, umbralCorte);
         if (debt.requiereCorte) conCorte++;
         return this.prisma.subscription.update({
           where: { id: sub.id },

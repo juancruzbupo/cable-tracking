@@ -11,6 +11,7 @@
 | 4 | Planes de servicio, cron nocturno, PDFs, reportes cobranza | Implementado |
 | 5 | Sistema de promociones (4 tipos, 2 scopes) | Implementado |
 | 6 | Facturacion fiscal con provider pattern | Implementado |
+| 7 | Equipos, tickets de soporte, WhatsApp | Implementado |
 
 ---
 
@@ -113,6 +114,29 @@
 - Detecta tipo de servicio (CABLE/INTERNET) por descripcion.
 - Vincula a suscripcion existente o crea nueva automaticamente.
 - Preview antes de confirmar importacion.
+
+## Equipos (inventario)
+
+- **Alta de equipo**: tipo, marca, modelo, numero de serie (unico).
+- **Estados**: EN_DEPOSITO, ASIGNADO, EN_REPARACION, DE_BAJA.
+- **Asignar a cliente**: solo equipos EN_DEPOSITO. Registra fecha de instalacion.
+- **Retirar de cliente**: marca fecha de retiro, devuelve a EN_DEPOSITO.
+- **Estadisticas**: total por estado.
+- **Historial**: cada equipo muestra todas sus asignaciones (actuales y pasadas).
+
+## Tickets de soporte
+
+- **Crear ticket** desde el detalle del cliente: tipo + descripcion opcional.
+- **Tipos**: Sin señal, Lentitud internet, Reconexión, Instalación, Cambio equipo, Otro.
+- **Resolver ticket** con notas de resolución.
+- **Estadisticas**: abiertos, resueltos, distribucion por tipo, tiempo promedio de resolucion (ultimos 30 dias).
+- **Listado global** con filtros por estado, paginacion.
+
+## Recordatorio WhatsApp
+
+- Desde la lista de corte, boton "Enviar WhatsApp" por cliente.
+- Genera mensaje predeterminado con detalle de deuda (cable/internet, meses, monto estimado).
+- Abre wa.me con el numero del cliente y el texto pre-armado.
 
 ## Gestion de usuarios
 

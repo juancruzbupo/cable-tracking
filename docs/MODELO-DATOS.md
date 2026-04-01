@@ -1,4 +1,4 @@
-# Modelo de Datos (13 tablas)
+# Modelo de Datos (16 tablas)
 
 ## Diagrama de relaciones
 
@@ -15,7 +15,11 @@ Client
   ├──< Document (clientId) [CASCADE]
   ├──< PaymentPeriod (clientId) [CASCADE]
   ├──< ClientNote (clientId) [CASCADE]
-  └──< Comprobante (clientId)
+  ├──< Comprobante (clientId)
+  ├──< EquipmentAssignment (clientId) [CASCADE]
+  └──< Ticket (clientId) [CASCADE]
+
+Equipment ──< EquipmentAssignment (equipmentId)
 
 ServicePlan
   ├──< Subscription (planId)
@@ -237,6 +241,45 @@ Registro de cada importacion de Excel.
 | errors | JSON? | Array de errores detallados |
 | status | String | SUCCESS / PARTIAL / FAILED |
 
+### Equipment
+Inventario de equipos de la empresa (routers, decos, ONTs, etc).
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| tipo | String | Tipo de equipo (Deco, Router, ONT, etc) |
+| marca | String? | Marca del equipo |
+| modelo | String? | Modelo |
+| numeroSerie | String? | UNIQUE. Numero de serie |
+| estado | EquipmentStatus | EN_DEPOSITO / ASIGNADO / EN_REPARACION / DE_BAJA |
+| notas | String? | Observaciones |
+
+### EquipmentAssignment
+Registro de asignacion de equipo a cliente.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| equipmentId | UUID | FK → Equipment |
+| clientId | UUID | FK → Client (CASCADE) |
+| fechaInstalacion | DateTime | Fecha de instalacion |
+| fechaRetiro | DateTime? | Null si sigue instalado |
+| notas | String? | Observaciones de instalacion/retiro |
+
+### Ticket
+Tickets de soporte tecnico.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| id | UUID | PK |
+| clientId | UUID | FK → Client (CASCADE) |
+| tipo | TicketType | SIN_SENIAL / LENTITUD_INTERNET / RECONEXION / INSTALACION / CAMBIO_EQUIPO / OTRO |
+| descripcion | String? | Detalle del problema |
+| estado | TicketStatus | ABIERTO / RESUELTO |
+| notas | String? | Notas de resolucion |
+| creadoPor | String | userId que lo creo |
+| resuelto | DateTime? | Fecha/hora de resolucion |
+
 ## Enums
 
 | Enum | Valores |
@@ -251,3 +294,6 @@ Registro de cada importacion de Excel.
 | CondicionFiscal | RESPONSABLE_INSCRIPTO, MONOTRIBUTISTA, CONSUMIDOR_FINAL, EXENTO |
 | TipoComprobante | FACTURA_A, FACTURA_B, FACTURA_C, RECIBO_X |
 | EstadoComprobante | PENDIENTE, EMITIDO, ANULADO, ERROR |
+| EquipmentStatus | EN_DEPOSITO, ASIGNADO, EN_REPARACION, DE_BAJA |
+| TicketStatus | ABIERTO, RESUELTO |
+| TicketType | SIN_SENIAL, LENTITUD_INTERNET, RECONEXION, INSTALACION, CAMBIO_EQUIPO, OTRO |

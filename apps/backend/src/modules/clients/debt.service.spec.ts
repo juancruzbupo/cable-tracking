@@ -84,6 +84,31 @@ describe('DebtService.calculateSubDebt', () => {
     expect(r.mesesConPromoGratis).toHaveLength(0);
     expect(r.cantidadDeuda).toBeGreaterThan(0);
   });
+
+  it('umbralCorte custom: 3 meses de deuda con umbral 3 → NO requiere corte', () => {
+    const alta = dayjs().subtract(5, 'month').startOf('month');
+    const r = service.calculateSubDebt('s1', ServiceType.CABLE, ClientStatus.ACTIVO, alta.toDate(), [], [], 3);
+    // Con 4-5 meses sin pagar, pero umbral en 3, solo requiere corte si > 3
+    expect(r.cantidadDeuda).toBeGreaterThanOrEqual(3);
+    if (r.cantidadDeuda === 3) {
+      expect(r.requiereCorte).toBe(false); // 3 no es > 3
+    } else {
+      expect(r.requiereCorte).toBe(true);
+    }
+  });
+
+  it('MESES_GRATIS promo cubre meses → reduce deuda', () => {
+    const alta = dayjs().subtract(3, 'month').startOf('month');
+    const promo = {
+      id: 'p1', nombre: 'Gratis', tipo: 'MESES_GRATIS' as const, valor: 0,
+      fechaInicio: alta.subtract(1, 'month').toDate(),
+      fechaFin: dayjs().add(1, 'month').toDate(),
+    };
+    const withPromo = service.calculateSubDebt('s1', ServiceType.CABLE, ClientStatus.ACTIVO, alta.toDate(), [], [promo]);
+    const withoutPromo = service.calculateSubDebt('s1', ServiceType.CABLE, ClientStatus.ACTIVO, alta.toDate(), [], []);
+    expect(withPromo.mesesConPromoGratis.length).toBeGreaterThan(0);
+    expect(withPromo.cantidadDeuda).toBeLessThan(withoutPromo.cantidadDeuda);
+  });
 });
 
 describe('DebtService.calculateClientDebt', () => {

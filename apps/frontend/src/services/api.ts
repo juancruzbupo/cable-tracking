@@ -384,7 +384,9 @@ export const fiscalApi = {
 export const equipmentApi = {
   getAll: async (params?: Record<string, string>) => { const { data } = await api.get('/equipment', { params }); return data; },
   getStats: async () => { const { data } = await api.get('/equipment/stats'); return data; },
+  getOne: async (id: string) => { const { data } = await api.get(`/equipment/${id}`); return data; },
   create: async (body: { tipo: string; marca?: string; modelo?: string; numeroSerie?: string }) => { const { data } = await api.post('/equipment', body); return data; },
+  update: async (id: string, body: { tipo?: string; marca?: string; modelo?: string; notas?: string; estado?: string }) => { const { data } = await api.patch(`/equipment/${id}`, body); return data; },
   getClientEquipment: async (clientId: string) => { const { data } = await api.get(`/clients/${clientId}/equipment`); return data; },
   assign: async (clientId: string, equipmentId: string) => { const { data } = await api.post(`/clients/${clientId}/equipment`, { equipmentId }); return data; },
   retire: async (clientId: string, assignmentId: string) => { const { data } = await api.patch(`/clients/${clientId}/equipment/${assignmentId}/retirar`); return data; },
@@ -398,6 +400,12 @@ export const ticketsApi = {
   getClientTickets: async (clientId: string) => { const { data } = await api.get(`/clients/${clientId}/tickets`); return data; },
   create: async (clientId: string, tipo: string, descripcion?: string) => { const { data } = await api.post(`/clients/${clientId}/tickets`, { tipo, descripcion }); return data; },
   resolve: async (ticketId: string, notas?: string) => { const { data } = await api.patch(`/tickets/${ticketId}/resolver`, { notas }); return data; },
+};
+
+// ── Scheduler ────────────────────────────────────────────────────────────
+
+export const schedulerApi = {
+  getStatus: async () => { const { data } = await api.get('/scheduler/status'); return data; },
 };
 
 export function getErrorMessage(err: unknown): string {
