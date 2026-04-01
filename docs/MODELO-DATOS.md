@@ -106,6 +106,7 @@ Factura o remito importado del Excel o generado manualmente.
 | fechaDocumento | Date? | Fecha de emision |
 | numeroDocumento | String? | Numero comprobante. `MANUAL-*` = pago manual |
 | descripcionOriginal | String? | Texto del Excel (se parsean periodos) |
+| formaPago | String? | Canal de pago: EFECTIVO / TRANSFERENCIA / DEBITO / OTRO (solo manuales) |
 
 ### PaymentPeriod
 Registra que un cliente tiene cubierto un mes especifico.
@@ -174,6 +175,11 @@ Comprobante fiscal (factura/recibo) con campos AFIP-ready.
 | cae | String? | Codigo AFIP (null en mock) |
 | caeFechaVto | DateTime? | Vencimiento del CAE |
 | providerResponse | JSON? | Respuesta raw del proveedor |
+| concepto | Int | Default: 2 (Servicios). 1=Productos, 2=Servicios, 3=Ambos |
+| fechaServDesde | Date? | Primer dia del periodo facturado (obligatorio ARCA concepto=2) |
+| fechaServHasta | Date? | Ultimo dia del periodo facturado |
+| fechaVtoPago | Date? | Fecha limite de pago |
+| formaPago | String? | Default: "CONTADO". CONTADO / CUENTA_CORRIENTE |
 
 ### EmpresaConfig
 Configuracion de la empresa emisora (singleton).
