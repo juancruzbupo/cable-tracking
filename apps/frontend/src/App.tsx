@@ -39,17 +39,21 @@ function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
   const menuItems = [
+    // Operación diaria
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/clients', icon: <TeamOutlined />, label: 'Clientes' },
-    ...(hasRole('ADMIN') ? [{ key: '/import', icon: <UploadOutlined />, label: 'Importaciones' }] : []),
-    { key: '/documents', icon: <FileTextOutlined />, label: 'Documentos' },
     { key: '/corte', icon: <ScissorOutlined />, label: 'Para Corte' },
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: 'Tickets' }] : []),
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/equipment', icon: <ToolOutlined />, label: 'Equipos' }] : []),
+    // Consultas
+    { key: '/documents', icon: <FileTextOutlined />, label: 'Documentos' },
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/comprobantes', icon: <FileTextOutlined />, label: 'Comprobantes' }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/reportes', icon: <BarChartOutlined />, label: 'Reportes' }] : []),
+    // Configuración
     ...(hasRole('ADMIN') ? [{ key: '/plans', icon: <DollarOutlined />, label: 'Planes' }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/promotions', icon: <ThunderboltOutlined />, label: 'Promociones' }] : []),
-    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/comprobantes', icon: <FileTextOutlined />, label: 'Comprobantes' }] : []),
-    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/equipment', icon: <ToolOutlined />, label: 'Equipos' }] : []),
-    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: 'Tickets' }] : []),
+    // Admin
+    ...(hasRole('ADMIN') ? [{ key: '/import', icon: <UploadOutlined />, label: 'Importaciones' }] : []),
     ...(hasRole('ADMIN') ? [{ key: '/fiscal', icon: <SettingOutlined />, label: 'Config Fiscal' }] : []),
     ...(hasRole('ADMIN') ? [{ key: '/users', icon: <UserOutlined />, label: 'Usuarios' }] : []),
   ];
