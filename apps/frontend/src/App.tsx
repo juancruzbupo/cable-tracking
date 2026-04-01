@@ -66,7 +66,7 @@ function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} breakpoint="lg" style={{ background: '#001529' }}>
+      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} breakpoint="lg" style={{ background: '#001529', overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0 }}>
         <div style={{
           height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', fontWeight: 700, fontSize: collapsed ? 14 : 16, whiteSpace: 'nowrap', overflow: 'hidden',
