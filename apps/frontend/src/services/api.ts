@@ -11,12 +11,40 @@ import type {
   ClientStatus,
   DebtStatus,
   Document,
+  User,
+  LoginResponse,
+  UserRole,
 } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 120000, // 2min para importaciones grandes
+  timeout: 120000,
 });
+
+// ── Auth interceptor ───────────────────────────────────────────────────────
+
+export function setAuthToken(token: string | null) {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+}
+
+let onUnauthorized: (() => void) | null = null;
+export function setOnUnauthorized(callback: () => void) {
+  onUnauthorized = callback;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && onUnauthorized) {
+      onUnauthorized();
+    }
+    return Promise.reject(error);
+  },
+);
 
 // ── Import ──────────────────────────────────────────────────────────────────
 
@@ -140,6 +168,36 @@ async function downloadFile(url: string, fallbackName: string) {
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+
+export const authApi = {
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    const { data } = await api.post('/auth/login', { email, password });
+    return data;
+  },
+  me: async (): Promise<User> => {
+    const { data } = await api.get('/auth/me');
+    return data;
+  },
+};
+
+// ── Users (admin) ─────────────────────────────────────────────────────────
+
+export const usersApi = {
+  getAll: async (): Promise<User[]> => {
+    const { data } = await api.get('/auth/users');
+    return data;
+  },
+  create: async (user: { name: string; email: string; password: string; role?: UserRole }): Promise<User> => {
+    const { data } = await api.post('/auth/users', user);
+    return data;
+  },
+  update: async (id: string, updates: { name?: string; role?: UserRole; isActive?: boolean }): Promise<User> => {
+    const { data } = await api.patch(`/auth/users/${id}`, updates);
+    return data;
+  },
+};
 
 export function getErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {

@@ -270,7 +270,9 @@ export class ExportService {
   private async getClientsWithDebt(): Promise<ClientDebtInfo[]> {
     const clients = await this.prisma.client.findMany({
       include: {
-        paymentPeriods: { select: { year: true, month: true } },
+        subscriptions: {
+          include: { paymentPeriods: { select: { year: true, month: true } } },
+        },
       },
       orderBy: { nombreNormalizado: 'asc' },
     });
@@ -283,7 +285,7 @@ export class ExportService {
         c.estado,
         c.fechaAlta,
         c.calle,
-        c.paymentPeriods,
+        c.subscriptions,
       ),
     );
   }

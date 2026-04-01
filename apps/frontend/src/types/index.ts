@@ -2,7 +2,26 @@
 
 export type ClientStatus = 'ACTIVO' | 'BAJA';
 export type DocumentType = 'RAMITO' | 'FACTURA';
+export type ServiceType = 'CABLE' | 'INTERNET';
 export type DebtStatus = 'AL_DIA' | '1_MES' | '2_MESES' | 'MAS_2_MESES';
+export type UserRole = 'ADMIN' | 'OPERADOR' | 'VISOR';
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  user: User;
+}
 
 // ── Client ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +37,17 @@ export interface Client {
   updatedAt: string;
 }
 
+export interface SubscriptionDebt {
+  subscriptionId: string;
+  tipo: ServiceType;
+  fechaAlta: string;
+  mesesObligatorios: string[];
+  mesesPagados: string[];
+  mesesAdeudados: string[];
+  cantidadDeuda: number;
+  requiereCorte: boolean;
+}
+
 export interface ClientDebtInfo {
   clientId: string;
   codCli: string;
@@ -30,6 +60,11 @@ export interface ClientDebtInfo {
   mesesAdeudados: string[];
   cantidadDeuda: number;
   requiereCorte: boolean;
+  subscriptions: SubscriptionDebt[];
+  requiereCorteCable: boolean;
+  requiereCorteInternet: boolean;
+  deudaCable: number;
+  deudaInternet: number;
 }
 
 export interface ClientWithDebt extends Client {

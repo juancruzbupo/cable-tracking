@@ -4,6 +4,7 @@ import { WarningOutlined, ScissorOutlined, DownloadOutlined, FileExcelOutlined }
 import type { SorterResult } from 'antd/es/table/interface';
 import * as XLSX from 'xlsx';
 import { dashboardApi, exportApi, getErrorMessage } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { ClientDebtInfo } from '../types';
 
 export default function CortePage() {
@@ -11,6 +12,8 @@ export default function CortePage() {
   const [sortedClients, setSortedClients] = useState<ClientDebtInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { hasRole } = useAuth();
+  const canExport = hasRole('ADMIN', 'OPERADOR');
 
   useEffect(() => {
     dashboardApi
@@ -32,8 +35,10 @@ export default function CortePage() {
       'Código': c.codCli,
       'Cliente': c.nombreNormalizado,
       'Calle': c.calle || '',
-      'Fecha Alta': c.fechaAlta ? new Date(c.fechaAlta).toLocaleDateString('es-AR') : '',
-      'Meses Deuda': c.cantidadDeuda,
+      'Deuda Cable': c.deudaCable,
+      'Deuda Internet': c.deudaInternet,
+      'Corte Cable': c.requiereCorteCable ? 'Sí' : 'No',
+      'Corte Internet': c.requiereCorteInternet ? 'Sí' : 'No',
       'Meses Adeudados': c.mesesAdeudados.join(', '),
     }));
 
@@ -94,21 +99,25 @@ export default function CortePage() {
           <ScissorOutlined /> Clientes para Corte
         </Typography.Title>
         <Space>
-          <Button
-            icon={<FileExcelOutlined />}
-            onClick={handleExportCorte}
-            disabled={clients.length === 0}
-          >
-            Exportar Corte
-          </Button>
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={handleDownloadResumen}
-            loading={downloading}
-          >
-            Resumen General
-          </Button>
+          {canExport && (
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={handleExportCorte}
+              disabled={clients.length === 0}
+            >
+              Exportar Corte
+            </Button>
+          )}
+          {canExport && (
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={handleDownloadResumen}
+              loading={downloading}
+            >
+              Resumen General
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -190,12 +199,32 @@ export default function CortePage() {
               render: (d: string | null) => (d ? new Date(d).toLocaleDateString('es-AR') : '—'),
             },
             {
-              title: 'Meses deuda',
-              dataIndex: 'cantidadDeuda',
+              title: 'Deuda Cable',
+              dataIndex: 'deudaCable',
+              width: 110,
+              sorter: (a: ClientDebtInfo, b: ClientDebtInfo) => a.deudaCable - b.deudaCable,
+              render: (v: number, r: ClientDebtInfo) => v > 0
+                ? <Tag color={r.requiereCorteCable ? 'red' : 'orange'}>{v} mes{v !== 1 ? 'es' : ''}</Tag>
+                : <Tag color="green">Al día</Tag>,
+            },
+            {
+              title: 'Deuda Internet',
+              dataIndex: 'deudaInternet',
+              width: 110,
+              sorter: (a: ClientDebtInfo, b: ClientDebtInfo) => a.deudaInternet - b.deudaInternet,
+              render: (v: number, r: ClientDebtInfo) => v > 0
+                ? <Tag color={r.requiereCorteInternet ? 'red' : 'orange'}>{v} mes{v !== 1 ? 'es' : ''}</Tag>
+                : <Tag color="green">Al día</Tag>,
+            },
+            {
+              title: 'Cortar',
               width: 120,
-              sorter: (a: ClientDebtInfo, b: ClientDebtInfo) => a.cantidadDeuda - b.cantidadDeuda,
-              defaultSortOrder: 'descend',
-              render: (v: number) => <Tag color="red" icon={<WarningOutlined />}>{v} meses</Tag>,
+              render: (_: unknown, r: ClientDebtInfo) => (
+                <Space size={4}>
+                  {r.requiereCorteCable && <Tag color="red">Cable</Tag>}
+                  {r.requiereCorteInternet && <Tag color="red">Internet</Tag>}
+                </Space>
+              ),
             },
             {
               title: 'Meses adeudados',

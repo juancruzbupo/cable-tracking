@@ -10,6 +10,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { ImportService } from './import.service';
+import { Roles } from '../auth/roles.decorator';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -34,6 +35,7 @@ const fileUpload = () =>
   });
 
 @ApiTags('Import')
+@Roles('ADMIN')
 @Controller('import')
 export class ImportController {
   constructor(private readonly importService: ImportService) {}
@@ -101,6 +103,7 @@ export class ImportController {
   // ── Logs ───────────────────────────────────────────────────
 
   @Get('logs')
+  @Roles('ADMIN', 'OPERADOR')
   getLogs(@Query('limit') limit?: number) {
     return this.importService.getImportLogs(
       Math.min(100, Math.max(1, Number(limit) || 20)),

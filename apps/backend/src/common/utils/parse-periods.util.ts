@@ -59,11 +59,37 @@ export interface ParsedPeriod {
   periodo: Date;
 }
 
+export interface ParsedPeriodResult {
+  periods: ParsedPeriod[];
+  serviceType: 'CABLE' | 'INTERNET' | null;
+}
+
+/**
+ * Detecta el tipo de servicio por la descripcion del documento.
+ */
+export function detectServiceType(description: string | null): 'CABLE' | 'INTERNET' | null {
+  if (!description) return null;
+  const d = description.toUpperCase();
+  const hasCable = /TVCABLE|TV\s*CABLE|TV\s*\+\s*CABLE|\bCABLE\b/.test(d);
+  const hasInternet = /\bMEGAS?\b|\bINTERNET\b|\bMBPS?\b|\bMB\b|\bFIBRA\b/.test(d);
+  if (hasInternet && !hasCable) return 'INTERNET';
+  if (hasCable) return 'CABLE';
+  if (hasInternet) return 'INTERNET';
+  return null;
+}
+
+/**
+ * Extrae períodos de pago y tipo de servicio de una descripción.
+ */
+export function parsePeriodsWithService(description: string): ParsedPeriodResult {
+  return {
+    periods: parsePeriodsFromDescription(description),
+    serviceType: detectServiceType(description),
+  };
+}
+
 /**
  * Extrae períodos de pago de una descripción de documento.
- *
- * Estrategia: Buscar patrón {MES}{AÑO_2DIGITOS} que es el formato
- * universal en este dataset.
  */
 export function parsePeriodsFromDescription(
   description: string,

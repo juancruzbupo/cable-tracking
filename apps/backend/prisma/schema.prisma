@@ -17,65 +17,115 @@ enum DocumentType {
   FACTURA
 }
 
+enum ServiceType {
+  CABLE
+  INTERNET
+}
+
+enum Role {
+  ADMIN
+  OPERADOR
+  VISOR
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(OPERADOR)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
 model Client {
-  id                 String       @id @default(uuid()) @db.Uuid
-  codCli             String       @unique @map("cod_cli")
-  nombreOriginal     String       @map("nombre_original")
-  nombreNormalizado  String       @map("nombre_normalizado")
-  fechaAlta          DateTime?    @map("fecha_alta") @db.Date
-  estado             ClientStatus @default(ACTIVO)
+  id                 String         @id @default(uuid()) @db.Uuid
+  codCli             String         @unique @map("cod_cli")
+  nombreOriginal     String         @map("nombre_original")
+  nombreNormalizado  String         @map("nombre_normalizado")
+  fechaAlta          DateTime?      @map("fecha_alta") @db.Date
+  estado             ClientStatus   @default(ACTIVO)
   calle              String?
 
+  subscriptions      Subscription[]
   documents          Document[]
   paymentPeriods     PaymentPeriod[]
 
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
 
   @@index([estado])
   @@index([nombreNormalizado])
   @@map("clients")
 }
 
-model Document {
-  id                  String       @id @default(uuid()) @db.Uuid
-  clientId            String       @map("client_id") @db.Uuid
-  codCli              String       @map("cod_cli")
-  tipo                DocumentType
-  fechaDocumento      DateTime?    @map("fecha_documento") @db.Date
-  numeroDocumento     String?      @map("numero_documento")
-  descripcionOriginal String?      @map("descripcion_original")
+model Subscription {
+  id        String       @id @default(uuid()) @db.Uuid
+  clientId  String       @map("client_id") @db.Uuid
+  tipo      ServiceType
+  fechaAlta DateTime     @map("fecha_alta") @db.Date
+  estado    ClientStatus @default(ACTIVO)
 
-  client              Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documents      Document[]
+  paymentPeriods PaymentPeriod[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([clientId, tipo])
+  @@index([clientId])
+  @@map("subscriptions")
+}
+
+model Document {
+  id                  String        @id @default(uuid()) @db.Uuid
+  clientId            String        @map("client_id") @db.Uuid
+  codCli              String        @map("cod_cli")
+  subscriptionId      String?       @map("subscription_id") @db.Uuid
+  tipo                DocumentType
+  fechaDocumento      DateTime?     @map("fecha_documento") @db.Date
+  numeroDocumento     String?       @map("numero_documento")
+  descripcionOriginal String?       @map("descripcion_original")
+
+  client              Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscription        Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   paymentPeriods      PaymentPeriod[]
 
-  createdAt           DateTime     @default(now()) @map("created_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
 
   @@index([tipo])
   @@index([clientId])
   @@index([clientId, tipo])
   @@index([codCli])
+  @@index([subscriptionId])
   @@map("documents")
 }
 
 model PaymentPeriod {
-  id          String   @id @default(uuid()) @db.Uuid
-  clientId    String   @map("client_id") @db.Uuid
-  codCli      String   @map("cod_cli")
-  documentId  String   @map("document_id") @db.Uuid
-  periodo     DateTime @db.Date
-  year        Int
-  month       Int
+  id             String        @id @default(uuid()) @db.Uuid
+  clientId       String        @map("client_id") @db.Uuid
+  codCli         String        @map("cod_cli")
+  documentId     String        @map("document_id") @db.Uuid
+  subscriptionId String?       @map("subscription_id") @db.Uuid
+  periodo        DateTime      @db.Date
+  year           Int
+  month          Int
 
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  document       Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
 
   @@unique([clientId, periodo, documentId])
   @@index([clientId, periodo])
   @@index([clientId, year, month])
   @@index([documentId])
+  @@index([subscriptionId])
   @@map("payment_periods")
 }
 

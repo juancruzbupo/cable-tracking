@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { exportApi } from '../services/api';
 import { useClients, useClientDetail } from '../hooks/useClients';
+import { useAuth } from '../context/AuthContext';
 import type { ClientWithDebt, ClientDetailResult, ClientStatus } from '../types';
 
 export default function ClientsPage() {
@@ -17,7 +18,9 @@ export default function ClientsPage() {
     estado, setEstado, debtStatus, setDebtStatus, load,
   } = useClients();
   const detail = useClientDetail();
+  const { hasRole } = useAuth();
   const [exporting, setExporting] = useState(false);
+  const canExport = hasRole('ADMIN', 'OPERADOR');
 
   const handleExport = async () => {
     try {
@@ -49,13 +52,15 @@ export default function ClientsPage() {
         alignItems: 'center', marginBottom: 16,
       }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Clientes</Typography.Title>
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={handleExport}
-          loading={exporting}
-        >
-          Exportar Excel
-        </Button>
+        {canExport && (
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            loading={exporting}
+          >
+            Exportar Excel
+          </Button>
+        )}
       </div>
 
       <Card style={{ marginBottom: 16 }}>
@@ -143,6 +148,16 @@ export default function ClientsPage() {
               render: (v: string | null) => v || '—',
             },
             {
+              title: 'Servicios',
+              width: 130,
+              render: (_: unknown, r: ClientWithDebt) => (
+                <Space size={2}>
+                  {r.debtInfo?.subscriptions?.some((s) => s.tipo === 'CABLE') && <Tag color="blue">Cable</Tag>}
+                  {r.debtInfo?.subscriptions?.some((s) => s.tipo === 'INTERNET') && <Tag color="green">Internet</Tag>}
+                </Space>
+              ),
+            },
+            {
               title: 'Deuda',
               width: 140,
               render: (_: unknown, r: ClientWithDebt) =>
@@ -204,8 +219,8 @@ export default function ClientsPage() {
 function ClientDetail({ data }: { data: ClientDetailResult }) {
   const {
     nombreNormalizado, nombreOriginal, codCli, estado,
-    fechaAlta, calle, cantidadDeuda, requiereCorte,
-    mesesObligatorios, mesesPagados, documents,
+    fechaAlta, calle, requiereCorte,
+    subscriptions, documents,
   } = data;
 
   return (
@@ -229,60 +244,58 @@ function ClientDetail({ data }: { data: ClientDetailResult }) {
 
       <Divider orientation="left">Situación de deuda</Divider>
 
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-        <Card size="small" style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: cantidadDeuda > 0 ? '#f5222d' : '#52c41a' }}>
-            {cantidadDeuda}
-          </div>
-          <div style={{ color: '#888' }}>meses deuda</div>
-        </Card>
-        <Card size="small" style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#52c41a' }}>
-            {mesesPagados.length}
-          </div>
-          <div style={{ color: '#888' }}>meses pagados</div>
-        </Card>
-        <Card size="small" style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#1677ff' }}>
-            {mesesObligatorios.length}
-          </div>
-          <div style={{ color: '#888' }}>meses obligatorios</div>
-        </Card>
-      </div>
-
       {requiereCorte && (
         <Tag color="red" icon={<WarningOutlined />} style={{ marginBottom: 16, fontSize: 14, padding: '4px 12px' }}>
-          REQUIERE CORTE — {cantidadDeuda} meses de deuda
+          REQUIERE CORTE
         </Tag>
       )}
 
-      {mesesObligatorios.length > 0 && (
-        <>
-          <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
-            Cobertura mensual (últimos 12):
-          </Typography.Text>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-            {mesesObligatorios.slice(-12).map((m) => {
-              const pagado = mesesPagados.includes(m);
-              return (
-                <Badge
-                  key={m}
-                  count={pagado ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 10 }} /> : <CloseCircleFilled style={{ color: '#f5222d', fontSize: 10 }} />}
-                  offset={[-4, 0]}
-                >
-                  <Tag color={pagado ? 'green' : 'red'} style={{ margin: 0 }}>
-                    {m}
-                  </Tag>
-                </Badge>
-              );
-            })}
-          </div>
-          {mesesObligatorios.length > 12 && (
-            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              Mostrando últimos 12 de {mesesObligatorios.length} meses obligatorios.
-            </Typography.Text>
-          )}
-        </>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        {subscriptions.map((sub) => (
+          <Card
+            key={sub.subscriptionId}
+            size="small"
+            style={{ flex: 1, minWidth: 240, border: sub.requiereCorte ? '1px solid #ff4d4f' : undefined }}
+            title={
+              <Space>
+                {sub.tipo === 'CABLE' ? '📺' : '🌐'}
+                {sub.tipo}
+                {sub.requiereCorte && <Tag color="red" style={{ margin: 0 }}>CORTE</Tag>}
+              </Space>
+            }
+          >
+            <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: sub.cantidadDeuda > 0 ? '#f5222d' : '#52c41a' }}>
+                  {sub.cantidadDeuda}
+                </div>
+                <div style={{ color: '#888', fontSize: 11 }}>deuda</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>{sub.mesesPagados.length}</div>
+                <div style={{ color: '#888', fontSize: 11 }}>pagados</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {sub.mesesObligatorios.slice(-6).map((m) => {
+                const pagado = sub.mesesPagados.includes(m);
+                return (
+                  <Badge
+                    key={m}
+                    count={pagado ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 8 }} /> : <CloseCircleFilled style={{ color: '#f5222d', fontSize: 8 }} />}
+                    offset={[-4, 0]}
+                  >
+                    <Tag color={pagado ? 'green' : 'red'} style={{ margin: 0, fontSize: 10 }}>{m}</Tag>
+                  </Badge>
+                );
+              })}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {subscriptions.length === 0 && (
+        <Typography.Text type="secondary">Sin suscripciones registradas.</Typography.Text>
       )}
 
       {documents.length > 0 && (

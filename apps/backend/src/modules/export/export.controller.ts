@@ -3,8 +3,10 @@ import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import dayjs from 'dayjs';
 import { ExportService } from './export.service';
+import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Export')
+@Roles('ADMIN', 'OPERADOR')
 @Controller('export')
 export class ExportController {
   constructor(private readonly exportService: ExportService) {}

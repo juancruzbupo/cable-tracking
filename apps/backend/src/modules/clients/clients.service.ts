@@ -1,7 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { ClientStatus, Prisma } from '@prisma/client';
+import { ClientStatus, Prisma, ServiceType } from '@prisma/client';
 import dayjs from 'dayjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
+
+export interface SubscriptionDebt {
+  subscriptionId: string;
+  tipo: ServiceType;
+  fechaAlta: Date;
+  mesesObligatorios: string[];
+  mesesPagados: string[];
+  mesesAdeudados: string[];
+  cantidadDeuda: number;
+  requiereCorte: boolean;
+}
 
 export interface ClientDebtInfo {
   clientId: string;
@@ -10,11 +21,18 @@ export interface ClientDebtInfo {
   estado: ClientStatus;
   fechaAlta: Date | null;
   calle: string | null;
+  // Retrocompat — peor caso entre suscripciones
   mesesObligatorios: string[];
   mesesPagados: string[];
   mesesAdeudados: string[];
   cantidadDeuda: number;
   requiereCorte: boolean;
+  // Desglose por servicio
+  subscriptions: SubscriptionDebt[];
+  requiereCorteCable: boolean;
+  requiereCorteInternet: boolean;
+  deudaCable: number;
+  deudaInternet: number;
 }
 
 export interface ClientDetailResult extends ClientDebtInfo {
@@ -42,6 +60,15 @@ export interface ClientListFilters {
   page?: number;
   limit?: number;
 }
+
+// Include reutilizable para cargar suscripciones con periodos
+const SUBS_INCLUDE = {
+  subscriptions: {
+    include: {
+      paymentPeriods: { select: { year: true, month: true } },
+    },
+  },
+} as const;
 
 @Injectable()
 export class ClientsService {
@@ -76,9 +103,7 @@ export class ClientsService {
           orderBy: { nombreNormalizado: 'asc' },
           skip: (page - 1) * limit,
           take: limit,
-          include: {
-            paymentPeriods: { select: { year: true, month: true } },
-          },
+          include: SUBS_INCLUDE,
         }),
         this.prisma.client.count({ where }),
       ]);
@@ -87,7 +112,7 @@ export class ClientsService {
         ...c,
         debtInfo: this.calculateDebt(
           c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle,
-          c.paymentPeriods,
+          c.subscriptions,
         ),
       }));
 
@@ -97,20 +122,17 @@ export class ClientsService {
       };
     }
 
-    // ── Con filtro de deuda: cargar todos, filtrar, paginar en memoria ──
     const allClients = await this.prisma.client.findMany({
       where,
       orderBy: { nombreNormalizado: 'asc' },
-      include: {
-        paymentPeriods: { select: { year: true, month: true } },
-      },
+      include: SUBS_INCLUDE,
     });
 
     const withDebt = allClients.map((c) => ({
       ...c,
       debtInfo: this.calculateDebt(
         c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle,
-        c.paymentPeriods,
+        c.subscriptions,
       ),
     }));
 
@@ -149,9 +171,7 @@ export class ClientsService {
   ): Promise<ClientDetailResult | null> {
     const client = await this.prisma.client.findUnique({
       where: { id },
-      include: {
-        paymentPeriods: { select: { year: true, month: true } },
-      },
+      include: SUBS_INCLUDE,
     });
     if (!client) return null;
 
@@ -163,6 +183,7 @@ export class ClientsService {
         take: docLimit,
         include: {
           paymentPeriods: { select: { year: true, month: true } },
+          subscription: { select: { tipo: true } },
         },
       }),
       this.prisma.document.count({ where: { clientId: id } }),
@@ -175,7 +196,7 @@ export class ClientsService {
       client.estado,
       client.fechaAlta,
       client.calle,
-      client.paymentPeriods,
+      client.subscriptions,
     );
 
     return {
@@ -202,17 +223,72 @@ export class ClientsService {
   }
 
   /**
+   * Calcula deuda de una suscripción individual.
+   */
+  private calculateSubDebt(
+    subId: string,
+    tipo: ServiceType,
+    estado: ClientStatus,
+    fechaAlta: Date,
+    paidPeriods: Array<{ year: number; month: number }>,
+  ): SubscriptionDebt {
+    const result: SubscriptionDebt = {
+      subscriptionId: subId,
+      tipo,
+      fechaAlta,
+      mesesObligatorios: [],
+      mesesPagados: [],
+      mesesAdeudados: [],
+      cantidadDeuda: 0,
+      requiereCorte: false,
+    };
+
+    if (estado !== ClientStatus.ACTIVO) return result;
+
+    const now = dayjs();
+    const alta = dayjs(fechaAlta).startOf('month');
+
+    let endMonth = now.startOf('month');
+    if (now.date() <= 15) {
+      endMonth = endMonth.subtract(1, 'month');
+    }
+
+    const paidSet = new Set(
+      paidPeriods.map((p) => `${p.year}-${String(p.month).padStart(2, '0')}`),
+    );
+
+    let debtStartMonth: dayjs.Dayjs;
+    if (paidPeriods.length > 0) {
+      const lastPaid = paidPeriods.reduce((latest, p) => {
+        if (p.year > latest.year || (p.year === latest.year && p.month > latest.month)) return p;
+        return latest;
+      }, paidPeriods[0]);
+      debtStartMonth = dayjs(`${lastPaid.year}-${String(lastPaid.month).padStart(2, '0')}-01`).add(1, 'month');
+    } else {
+      debtStartMonth = alta;
+    }
+
+    let current = alta;
+    while (current.isBefore(endMonth, 'month') || current.isSame(endMonth, 'month')) {
+      result.mesesObligatorios.push(current.format('YYYY-MM'));
+      current = current.add(1, 'month');
+    }
+
+    result.mesesPagados = result.mesesObligatorios.filter((m) => paidSet.has(m));
+    result.mesesAdeudados = result.mesesObligatorios.filter((m) => {
+      const monthDate = dayjs(m + '-01');
+      return !paidSet.has(m) && (monthDate.isAfter(debtStartMonth, 'month') || monthDate.isSame(debtStartMonth, 'month'));
+    });
+
+    result.cantidadDeuda = result.mesesAdeudados.length;
+    result.requiereCorte = result.cantidadDeuda > 1;
+    return result;
+  }
+
+  /**
    * ═══════════════════════════════════════════════════════════
-   * REGLA CENTRAL DE DEUDA
+   * REGLA CENTRAL DE DEUDA — POR SUSCRIPCIÓN
    * ═══════════════════════════════════════════════════════════
-   * La deuda se cuenta desde el último pago realizado:
-   *   1. Solo aplica si estado = ACTIVO
-   *   2. Si tiene pagos: deuda = meses desde últimoPago+1 hasta hoy
-   *      (huecos anteriores al último pago se perdonan)
-   *   3. Si NO tiene pagos: deuda = meses desde fechaAlta hasta hoy
-   *   4. El mes actual solo cuenta si día > 15
-   *
-   * Corte = más de 2 meses de deuda
    */
   calculateDebt(
     clientId: string,
@@ -221,98 +297,51 @@ export class ClientsService {
     estado: ClientStatus,
     fechaAlta: Date | null,
     calle: string | null,
-    paidPeriods: Array<{ year: number; month: number }>,
+    subscriptions: Array<{
+      id: string;
+      tipo: ServiceType;
+      fechaAlta: Date;
+      estado: ClientStatus;
+      paymentPeriods: Array<{ year: number; month: number }>;
+    }>,
   ): ClientDebtInfo {
-    const result: ClientDebtInfo = {
+    const subDebts: SubscriptionDebt[] = subscriptions.map((sub) =>
+      this.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods),
+    );
+
+    const cableDebt = subDebts.find((s) => s.tipo === ServiceType.CABLE);
+    const internetDebt = subDebts.find((s) => s.tipo === ServiceType.INTERNET);
+
+    // Retrocompat: peor caso entre suscripciones
+    const allObligatorios = [...new Set(subDebts.flatMap((s) => s.mesesObligatorios))].sort();
+    const allPagados = [...new Set(subDebts.flatMap((s) => s.mesesPagados))].sort();
+    const allAdeudados = [...new Set(subDebts.flatMap((s) => s.mesesAdeudados))].sort();
+    const maxDeuda = Math.max(0, ...subDebts.map((s) => s.cantidadDeuda));
+
+    return {
       clientId,
       codCli,
       nombreNormalizado,
       estado,
       fechaAlta,
       calle,
-      mesesObligatorios: [],
-      mesesPagados: [],
-      mesesAdeudados: [],
-      cantidadDeuda: 0,
-      requiereCorte: false,
+      mesesObligatorios: allObligatorios,
+      mesesPagados: allPagados,
+      mesesAdeudados: allAdeudados,
+      cantidadDeuda: maxDeuda,
+      requiereCorte: subDebts.some((s) => s.requiereCorte),
+      subscriptions: subDebts,
+      requiereCorteCable: cableDebt?.requiereCorte ?? false,
+      requiereCorteInternet: internetDebt?.requiereCorte ?? false,
+      deudaCable: cableDebt?.cantidadDeuda ?? 0,
+      deudaInternet: internetDebt?.cantidadDeuda ?? 0,
     };
-
-    if (estado !== ClientStatus.ACTIVO || !fechaAlta) {
-      return result;
-    }
-
-    const now = dayjs();
-    const alta = dayjs(fechaAlta).startOf('month');
-
-    // Mes actual solo cuenta si día > 15
-    let endMonth = now.startOf('month');
-    if (now.date() <= 15) {
-      endMonth = endMonth.subtract(1, 'month');
-    }
-
-    // Set O(1) de meses pagados
-    const paidSet = new Set(
-      paidPeriods.map(
-        (p) => `${p.year}-${String(p.month).padStart(2, '0')}`,
-      ),
-    );
-
-    // Determinar inicio de deuda: último pago + 1 mes, o fechaAlta si nunca pagó
-    let debtStartMonth: dayjs.Dayjs;
-
-    if (paidPeriods.length > 0) {
-      // Buscar el período más reciente pagado
-      const lastPaid = paidPeriods.reduce((latest, p) => {
-        if (p.year > latest.year || (p.year === latest.year && p.month > latest.month)) {
-          return p;
-        }
-        return latest;
-      }, paidPeriods[0]);
-
-      debtStartMonth = dayjs(`${lastPaid.year}-${String(lastPaid.month).padStart(2, '0')}-01`)
-        .add(1, 'month');
-    } else {
-      // Sin pagos: contar desde fecha de alta
-      debtStartMonth = alta;
-    }
-
-    // Generar meses obligatorios (desde fechaAlta para tener el panorama completo)
-    let current = alta;
-    while (
-      current.isBefore(endMonth, 'month') ||
-      current.isSame(endMonth, 'month')
-    ) {
-      result.mesesObligatorios.push(current.format('YYYY-MM'));
-      current = current.add(1, 'month');
-    }
-
-    // Meses pagados: todos los que están en el paidSet dentro de los obligatorios
-    result.mesesPagados = result.mesesObligatorios.filter((m) =>
-      paidSet.has(m),
-    );
-
-    // Meses adeudados: solo desde debtStartMonth en adelante (huecos anteriores se perdonan)
-    result.mesesAdeudados = result.mesesObligatorios.filter((m) => {
-      const monthDate = dayjs(m + '-01');
-      return (
-        !paidSet.has(m) &&
-        (monthDate.isAfter(debtStartMonth, 'month') ||
-          monthDate.isSame(debtStartMonth, 'month'))
-      );
-    });
-
-    result.cantidadDeuda = result.mesesAdeudados.length;
-    result.requiereCorte = result.cantidadDeuda > 1;
-
-    return result;
   }
 
   async getDebtStats() {
     const clients = await this.prisma.client.findMany({
       where: { estado: ClientStatus.ACTIVO },
-      include: {
-        paymentPeriods: { select: { year: true, month: true } },
-      },
+      include: SUBS_INCLUDE,
     });
 
     let alDia = 0;
@@ -329,7 +358,7 @@ export class ClientsService {
         client.estado,
         client.fechaAlta,
         client.calle,
-        (client as { paymentPeriods: { year: number; month: number }[] }).paymentPeriods,
+        client.subscriptions,
       );
 
       if (debt.cantidadDeuda === 0) alDia++;

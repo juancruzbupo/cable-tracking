@@ -6,7 +6,7 @@ import {
   ExcelParseError,
 } from '../../common/utils/excel-parser.util';
 import { normalizeName } from '../../common/utils/normalize-name.util';
-import { parsePeriodsFromDescription } from '../../common/utils/parse-periods.util';
+import { parsePeriodsFromDescription, detectServiceType } from '../../common/utils/parse-periods.util';
 import { DashboardService } from '../dashboard/dashboard.service';
 
 // ── Types ──────────────────────────────────────────────────────
@@ -270,22 +270,52 @@ export class ImportService {
           `Eliminados ${deleted.count} documentos tipo ${tipo}`,
         );
 
-        // ── PASO 2: Cargar mapa de clientes (1 query) ───────
+        // ── PASO 2: Cargar mapas (clientes + suscripciones) ─
         const allClients = await tx.client.findMany({
-          select: { id: true, codCli: true },
+          select: { id: true, codCli: true, fechaAlta: true },
         });
         const clientMap = new Map(
           allClients.map((c) => [c.codCli, c]),
         );
+        const allSubs = await tx.subscription.findMany({
+          select: { id: true, clientId: true, tipo: true },
+        });
+        const subMap = new Map(
+          allSubs.map((s) => [`${s.clientId}:${s.tipo}`, s]),
+        );
+
+        // Helper: buscar o crear suscripción
+        const getOrCreateSub = async (
+          clientId: string,
+          serviceType: 'CABLE' | 'INTERNET',
+          fechaAlta: Date | null,
+        ) => {
+          const key = `${clientId}:${serviceType}`;
+          let sub = subMap.get(key);
+          if (!sub) {
+            sub = await tx.subscription.create({
+              data: {
+                clientId,
+                tipo: serviceType,
+                fechaAlta: fechaAlta || new Date(),
+              },
+              select: { id: true, clientId: true, tipo: true },
+            });
+            subMap.set(key, sub);
+          }
+          return sub;
+        };
 
         // ── PASO 3: Validar y recolectar datos ──────────────
         interface DocData {
           clientId: string;
           codCli: string;
+          subscriptionId: string | null;
           tipo: DocumentType;
           fechaDocumento: Date | null;
           numeroDocumento: string | null;
           descripcionOriginal: string | null;
+          serviceType: 'CABLE' | 'INTERNET' | null;
         }
         const docBatch: DocData[] = [];
 
@@ -320,6 +350,9 @@ export class ImportService {
             ? String(descripcionRaw).trim()
             : null;
 
+          // Detectar tipo de servicio
+          const serviceType = detectServiceType(descripcionOriginal);
+
           // Advertir si no hay períodos (excepto servicios)
           if (descripcionOriginal) {
             const periods = parsePeriodsFromDescription(descripcionOriginal);
@@ -337,13 +370,22 @@ export class ImportService {
             }
           }
 
+          // Buscar/crear suscripción
+          let subscriptionId: string | null = null;
+          if (serviceType) {
+            const sub = await getOrCreateSub(client.id, serviceType, client.fechaAlta);
+            subscriptionId = sub.id;
+          }
+
           docBatch.push({
             clientId: client.id,
             codCli: client.codCli,
+            subscriptionId,
             tipo: docType,
             fechaDocumento: fechaRaw ? this.parseDate(fechaRaw) : null,
             numeroDocumento: numeroRaw ? String(numeroRaw).trim() : null,
             descripcionOriginal,
+            serviceType,
           });
           validRows++;
         }
@@ -352,7 +394,7 @@ export class ImportService {
         if (docBatch.length > 0) {
           const CHUNK = 500;
           for (let i = 0; i < docBatch.length; i += CHUNK) {
-            const chunk = docBatch.slice(i, i + CHUNK);
+            const chunk = docBatch.slice(i, i + CHUNK).map(({ serviceType: _st, ...d }) => d);
             const result = await tx.document.createMany({ data: chunk });
             documentsCreated += result.count;
           }
@@ -360,13 +402,14 @@ export class ImportService {
           // ── PASO 5: Recuperar IDs y crear períodos ────────
           const createdDocs = await tx.document.findMany({
             where: { tipo: docType },
-            select: { id: true, clientId: true, codCli: true, descripcionOriginal: true },
+            select: { id: true, clientId: true, codCli: true, subscriptionId: true, descripcionOriginal: true },
           });
 
           const periodBatch: Array<{
             clientId: string;
             codCli: string;
             documentId: string;
+            subscriptionId: string | null;
             periodo: Date;
             year: number;
             month: number;
@@ -380,6 +423,7 @@ export class ImportService {
                 clientId: doc.clientId,
                 codCli: doc.codCli,
                 documentId: doc.id,
+                subscriptionId: doc.subscriptionId,
                 periodo: p.periodo,
                 year: p.year,
                 month: p.month,

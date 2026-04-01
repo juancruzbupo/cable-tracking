@@ -60,7 +60,9 @@ export class DashboardService {
     const clients = await this.prisma.client.findMany({
       where: { estado: ClientStatus.ACTIVO },
       include: {
-        paymentPeriods: { select: { year: true, month: true } },
+        subscriptions: {
+          include: { paymentPeriods: { select: { year: true, month: true } } },
+        },
       },
     });
 
@@ -73,7 +75,7 @@ export class DashboardService {
           c.estado,
           c.fechaAlta,
           c.calle,
-          c.paymentPeriods,
+          c.subscriptions,
         ),
       )
       .filter((d) => d.requiereCorte)
