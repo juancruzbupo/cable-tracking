@@ -29,4 +29,7 @@ export class DashboardController {
 
   @Get('zonas')
   getZonas() { return this.dashboardService.getZonas(); }
+
+  @Get('tickets')
+  getTickets() { return this.dashboardService.getTicketsDashboard(); }
 }

@@ -206,6 +206,7 @@ export const dashboardApi = {
   getRiesgo: async () => { const { data } = await api.get('/dashboard/riesgo'); return data; },
   getCrecimiento: async () => { const { data } = await api.get('/dashboard/crecimiento'); return data; },
   getZonas: async () => { const { data } = await api.get('/dashboard/zonas'); return data; },
+  getTickets: async () => { const { data } = await api.get('/dashboard/tickets'); return data; },
 };
 
 // ── Export ──────────────────────────────────────────────────────────────────

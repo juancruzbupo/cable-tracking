@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClientStatus, ServiceType } from '@prisma/client';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/es';
 import { PrismaService } from '../../common/prisma/prisma.service';
+
+dayjs.extend(relativeTime);
+dayjs.locale('es');
 import { ClientsService, ClientDebtInfo } from '../clients/clients.service';
 import { calcularPrecioConPromo } from '../../common/utils/promotion-calculator.util';
 
@@ -332,6 +337,58 @@ export class DashboardService {
       .sort((a, b) => a.zona.localeCompare(b.zona));
 
     return { zonas };
+  }
+
+  // ── New: Tickets ─────────────────────────────────────────
+
+  async getTicketsDashboard() {
+    const cached = this.getCached('tickets');
+    if (cached) return cached;
+
+    const now = dayjs();
+    const hace48hs = now.subtract(48, 'hour').toDate();
+
+    const [abiertos, resueltosHoy, sinResolver48hs, porTipo, ultimosAbiertos] = await Promise.all([
+      this.prisma.ticket.count({ where: { estado: 'ABIERTO' } }),
+      this.prisma.ticket.count({ where: { estado: 'RESUELTO', resuelto: { gte: now.startOf('day').toDate() } } }),
+      this.prisma.ticket.count({ where: { estado: 'ABIERTO', createdAt: { lte: hace48hs } } }),
+      this.prisma.ticket.groupBy({ by: ['tipo'], where: { estado: 'ABIERTO' }, _count: true }),
+      this.prisma.ticket.findMany({
+        where: { estado: 'ABIERTO' },
+        orderBy: { createdAt: 'asc' },
+        take: 5,
+        include: { client: { select: { id: true, nombreNormalizado: true } } },
+      }),
+    ]);
+
+    // Tiempo promedio resolución últimos 30 días
+    const resolved30d = await this.prisma.ticket.findMany({
+      where: { estado: 'RESUELTO', resuelto: { gte: now.subtract(30, 'day').toDate() } },
+      select: { createdAt: true, resuelto: true },
+    });
+    const avgHours = resolved30d.length > 0
+      ? Math.round(resolved30d.reduce((sum, t) => sum + dayjs(t.resuelto!).diff(dayjs(t.createdAt), 'hour'), 0) / resolved30d.length)
+      : 0;
+
+    const result = {
+      abiertos,
+      resueltosHoy,
+      sinResolver48hs,
+      tiempoPromedioResolucion: avgHours,
+      porTipo: Object.fromEntries(porTipo.map((g) => [g.tipo, g._count])),
+      ultimosAbiertos: ultimosAbiertos.map((t) => ({
+        id: t.id,
+        tipo: t.tipo,
+        descripcion: t.descripcion,
+        cliente: t.client.nombreNormalizado,
+        clienteId: t.client.id,
+        desdeHace: dayjs(t.createdAt).fromNow(),
+        createdAt: t.createdAt,
+      })),
+    };
+
+    this.setCache('tickets', result);
+    return result;
   }
 
   // ── Private helpers ──────────────────────────────────────

@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [mrr, setMrr] = useState<any>(null);
   const [crecimiento, setCrecimiento] = useState<any>(null);
   const [zonas, setZonas] = useState<any>(null);
+  const [ticketsDash, setTicketsDash] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -26,8 +27,9 @@ export default function DashboardPage() {
       dashboardApi.getMrr().catch(() => null),
       dashboardApi.getCrecimiento().catch(() => null),
       dashboardApi.getZonas().catch(() => null),
+      dashboardApi.getTickets().catch(() => null),
     ])
-      .then(([m, t, mr, c, z]) => { setData(m); setTendencia(t); setMrr(mr); setCrecimiento(c); setZonas(z); })
+      .then(([m, t, mr, c, z, tk]) => { setData(m); setTendencia(t); setMrr(mr); setCrecimiento(c); setZonas(z); setTicketsDash(tk); })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
   }, []);
@@ -142,7 +144,37 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Fila 7 — Import log */}
+      {/* Fila 7 — Tickets de soporte */}
+      {ticketsDash && (
+        <>
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={12} sm={6}>
+              <Card size="small" style={{ borderColor: ticketsDash.abiertos > 0 ? '#ff4d4f' : undefined }}>
+                <Statistic title="Tickets abiertos" value={ticketsDash.abiertos} valueStyle={{ color: ticketsDash.abiertos > 0 ? '#ff4d4f' : '#52c41a' }} />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}><Card size="small"><Statistic title="Resueltos hoy" value={ticketsDash.resueltosHoy} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+            <Col xs={12} sm={6}>
+              <Card size="small" style={{ borderColor: ticketsDash.sinResolver48hs > 0 ? '#faad14' : undefined }}>
+                <Statistic title="Sin resolver +48hs" value={ticketsDash.sinResolver48hs} prefix={ticketsDash.sinResolver48hs > 0 ? <WarningOutlined /> : undefined} valueStyle={{ color: ticketsDash.sinResolver48hs > 0 ? '#faad14' : '#52c41a' }} />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}><Card size="small"><Statistic title="Tiempo prom. resolución" value={ticketsDash.tiempoPromedioResolucion} suffix="hs" /></Card></Col>
+          </Row>
+          {ticketsDash.ultimosAbiertos?.length > 0 && (
+            <Card title="Tickets abiertos más antiguos" size="small" style={{ marginTop: 16 }}>
+              <Table dataSource={ticketsDash.ultimosAbiertos} rowKey="id" size="small" pagination={false} columns={[
+                { title: 'Cliente', dataIndex: 'cliente' },
+                { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={{ SIN_SENIAL: 'red', LENTITUD_INTERNET: 'orange', RECONEXION: 'blue', INSTALACION: 'green', CAMBIO_EQUIPO: 'purple' }[t] || 'default'}>{t}</Tag> },
+                { title: 'Descripción', dataIndex: 'descripcion', ellipsis: true, render: (v: string) => v || '—' },
+                { title: 'Desde hace', dataIndex: 'desdeHace', width: 130 },
+              ]} />
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Fila 8 — Import log */}
       <Card title="Últimas importaciones" style={{ marginTop: 16 }}>
         <Table dataSource={data.ultimasImportaciones} rowKey="id" pagination={false} size="small" locale={{ emptyText: 'Sin importaciones aún' }} columns={[
           { title: 'Tipo', dataIndex: 'tipo', render: (t: string) => <Tag>{t}</Tag> },
