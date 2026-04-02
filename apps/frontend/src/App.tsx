@@ -53,7 +53,7 @@ function AppLayout() {
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/clients', icon: <TeamOutlined />, label: 'Clientes' },
     { key: '/corte', icon: <ScissorOutlined />, label: 'Para Corte' },
-    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: <Badge count={ticketsAbiertos} size="small" offset={[8, 0]}>Tickets</Badge> }] : []),
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <Badge count={ticketsAbiertos} size="small" dot={ticketsAbiertos > 0}><ExclamationCircleOutlined /></Badge>, label: 'Tickets' }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/equipment', icon: <ToolOutlined />, label: 'Equipos' }] : []),
     // Consultas
     { key: '/documents', icon: <FileTextOutlined />, label: 'Documentos' },
