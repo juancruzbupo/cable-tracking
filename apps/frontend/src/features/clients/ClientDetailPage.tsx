@@ -59,6 +59,9 @@ export default function ClientDetailPage() {
   const [equipOptions, setEquipOptions] = useState<any[]>([]);
   const [equipSearching, setEquipSearching] = useState(false);
   const [selectedEquipId, setSelectedEquipId] = useState<string>('');
+  const [availablePromos, setAvailablePromos] = useState<any[]>([]);
+  const [selectedPromoId, setSelectedPromoId] = useState('');
+  const [selectedPromoSubId, setSelectedPromoSubId] = useState('');
 
   // Loading states
   const [notesLoading, setNotesLoading] = useState(false);
@@ -80,7 +83,15 @@ export default function ClientDetailPage() {
 
   const loadNotes = async () => { if (!id) return; setNotesLoading(true); try { setNotes(await clientsApi.getNotes(id)); } catch { /* */ } finally { setNotesLoading(false); } };
   const loadHistory = async () => { if (!id) return; setHistoryLoading(true); try { setHistory(await clientsApi.getHistory(id)); } catch { /* */ } finally { setHistoryLoading(false); } };
-  const loadPromos = async () => { if (!id) return; setPromosLoading(true); try { setPromos(await promotionsApi.getClientPromos(id)); } catch { /* */ } finally { setPromosLoading(false); } };
+  const loadPromos = async () => {
+    if (!id) return; setPromosLoading(true);
+    try {
+      const [assigned, active] = await Promise.all([promotionsApi.getClientPromos(id), promotionsApi.getActive()]);
+      setPromos(assigned);
+      setAvailablePromos(active.filter((p: any) => p.scope === 'CLIENTE'));
+    } catch { /* */ }
+    finally { setPromosLoading(false); }
+  };
   const loadEquipment = async () => { if (!id) return; setEquipLoading(true); try { setClientEquipment(await equipmentApi.getClientEquipment(id)); } catch { /* */ } finally { setEquipLoading(false); } };
   const loadTickets = async () => { if (!id) return; setTicketsLoading(true); try { setClientTickets(await ticketsApi.getClientTickets(id)); } catch { /* */ } finally { setTicketsLoading(false); } };
 
@@ -366,9 +377,34 @@ export default function ClientDetailPage() {
         { key: 'historial', label: <><HistoryOutlined /> Historial</>, children: tabHistorial },
         { key: 'promos', label: <><ThunderboltOutlined /> Promociones</>, children: (
           <Card><Spin spinning={promosLoading}>
+            {canOperate && estado === 'ACTIVO' && activeSubs.length > 0 && availablePromos.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>Asignar promoción</Typography.Text>
+                <Space wrap>
+                  <Select placeholder="Suscripción" style={{ width: 150 }} value={selectedPromoSubId || undefined} onChange={setSelectedPromoSubId}
+                    options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
+                  <Select placeholder="Promoción" style={{ width: 280 }} value={selectedPromoId || undefined} onChange={setSelectedPromoId}
+                    options={availablePromos.map((p: any) => ({ value: p.id, label: `${p.nombre} (${p.tipo} ${p.tipo === 'PORCENTAJE' ? p.valor + '%' : p.tipo === 'MESES_GRATIS' ? '' : '$' + p.valor})` }))} />
+                  <Button type="primary" disabled={!selectedPromoId || !selectedPromoSubId} onClick={async () => {
+                    try { await promotionsApi.assignToSub(data.clientId, selectedPromoSubId, selectedPromoId); message.success('Promoción asignada'); setSelectedPromoId(''); setSelectedPromoSubId(''); loadPromos(); }
+                    catch (err) { message.error(getErrorMessage(err)); }
+                  }}>Asignar</Button>
+                </Space>
+              </div>
+            )}
             {promos.length > 0 ? <List dataSource={promos} renderItem={(p: any) => (
-              <List.Item><Space><Tag color="purple">{p.promotion?.tipo || p.tipo}</Tag><span>{p.promotion?.nombre || p.nombre}</span>{p.promotion?.fechaFin && <Typography.Text type="secondary">hasta {dayjs(p.promotion.fechaFin).format('DD/MM/YYYY')}</Typography.Text>}</Space></List.Item>
-            )} /> : !promosLoading && <Typography.Text type="secondary">Sin promociones.</Typography.Text>}
+              <List.Item actions={isAdmin ? [
+                <Button type="link" danger size="small" onClick={async () => {
+                  try { await promotionsApi.removeFromSub(data.clientId, p.subscriptionId, p.id); message.success('Promoción removida'); loadPromos(); }
+                  catch (err) { message.error(getErrorMessage(err)); }
+                }}>Quitar</Button>
+              ] : undefined}>
+                <List.Item.Meta
+                  title={<Space><Tag color="purple">{p.promotion?.tipo || p.tipo}</Tag><span>{p.promotion?.nombre || p.nombre}</span></Space>}
+                  description={p.promotion?.fechaFin ? `Hasta ${dayjs(p.promotion.fechaFin).format('DD/MM/YYYY')}` : undefined}
+                />
+              </List.Item>
+            )} /> : !promosLoading && <Typography.Text type="secondary">Sin promociones asignadas.</Typography.Text>}
           </Spin></Card>
         )},
         { key: 'documentos', label: <><FileTextOutlined /> Documentos ({data.docPagination.total})</>, children: tabDocumentos },
