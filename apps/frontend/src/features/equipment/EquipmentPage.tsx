@@ -14,7 +14,7 @@ export default function EquipmentPage() {
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
-    try { setLoading(true); const [eq, st] = await Promise.all([equipmentApi.getAll(), equipmentApi.getStats()]); setEquipment(eq); setStats(st); }
+    try { setLoading(true); const [eq, st] = await Promise.all([equipmentApi.getAll(), equipmentApi.getStats()]); setEquipment(eq.data || eq); setStats(st); }
     catch (err) { message.error(getErrorMessage(err)); }
     finally { setLoading(false); }
   }, []);
