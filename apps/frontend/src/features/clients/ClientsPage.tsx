@@ -227,6 +227,7 @@ export default function ClientsPage() {
                     type="text"
                     size="small"
                     icon={<EyeOutlined />}
+                    aria-label="Ver detalle del cliente"
                     onClick={() => detail.openDetail(r.id)}
                   />
                 </Tooltip>

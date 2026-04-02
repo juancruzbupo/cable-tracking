@@ -240,7 +240,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
               </Space.Compact>
             )}
             {clientEquipment.length > 0 ? <List size="small" dataSource={clientEquipment} renderItem={(eq: any) => (
-              <List.Item actions={canOperate && !eq.fechaRetiro ? [<Button size="small" type="link" danger onClick={async () => { try { await equipmentApi.retire(data.clientId, eq.id); message.success('Retirado'); loadEquipment(); } catch (err) { message.error(getErrorMessage(err)); } }}>Retirar</Button>] : undefined}>
+              <List.Item actions={canOperate && !eq.fechaRetiro ? [<Button size="small" type="link" danger onClick={() => Modal.confirm({ title: '¿Retirar este equipo?', okText: 'Retirar', okType: 'danger', onOk: async () => { try { await equipmentApi.retire(data.clientId, eq.id); message.success('Retirado'); loadEquipment(); } catch (err) { message.error(getErrorMessage(err)); } } })}>Retirar</Button>] : undefined}>
                 <List.Item.Meta title={<Space size={4}>{eq.equipment?.tipo} <Tag color={eq.fechaRetiro ? 'default' : 'blue'}>{eq.fechaRetiro ? 'Retirado' : 'Instalado'}</Tag></Space>}
                   description={<>{[eq.equipment?.marca, eq.equipment?.modelo].filter(Boolean).join(' ') || ''} {eq.equipment?.numeroSerie && <Typography.Text code style={{ fontSize: 11 }}>{eq.equipment.numeroSerie}</Typography.Text>}</>} />
               </List.Item>
@@ -279,7 +279,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
             {notes.length > 0 ? notes.map((n) => (
               <div key={n.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <Space size={4}><Typography.Text strong style={{ fontSize: 12 }}>{n.user.name}</Typography.Text><Typography.Text type="secondary" style={{ fontSize: 11 }}>{dayjs(n.createdAt).fromNow()}</Typography.Text>
-                  {isAdmin && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={async () => { try { await clientsApi.deleteNote(data.clientId, n.id); loadNotes(); } catch { message.error('Error'); } }} />}</Space>
+                  {isAdmin && <Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label="Eliminar nota" onClick={() => Modal.confirm({ title: '¿Eliminar esta nota?', okText: 'Eliminar', okType: 'danger', onOk: async () => { try { await clientsApi.deleteNote(data.clientId, n.id); loadNotes(); } catch { message.error('Error'); } } })} />}</Space>
                 <div style={{ fontSize: 13 }}>{n.content}</div>
               </div>
             )) : !notesLoading && <Typography.Text type="secondary">Sin notas.</Typography.Text>}
@@ -313,7 +313,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
               </div>
             )}
             {promos.length > 0 ? <List size="small" dataSource={promos} renderItem={(p: any) => (
-              <List.Item actions={isAdmin ? [<Button type="link" danger size="small" onClick={async () => { try { await promotionsApi.removeFromSub(data.clientId, p.subscriptionId, p.id); message.success('Removida'); loadPromos(); } catch (err) { message.error(getErrorMessage(err)); } }}>Quitar</Button>] : undefined}>
+              <List.Item actions={isAdmin ? [<Button type="link" danger size="small" onClick={() => Modal.confirm({ title: '¿Quitar esta promoción?', okText: 'Quitar', okType: 'danger', onOk: async () => { try { await promotionsApi.removeFromSub(data.clientId, p.subscriptionId, p.id); message.success('Removida'); loadPromos(); } catch (err) { message.error(getErrorMessage(err)); } } })}>Quitar</Button>] : undefined}>
                 <Space size={4}><Tag color="purple">{p.promotion?.tipo || p.tipo}</Tag><span style={{ fontSize: 12 }}>{p.promotion?.nombre || p.nombre}</span></Space>
               </List.Item>
             )} /> : !promosLoading && <Typography.Text type="secondary">Sin promociones.</Typography.Text>}

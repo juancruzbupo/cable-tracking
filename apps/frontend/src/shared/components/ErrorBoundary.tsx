@@ -28,11 +28,11 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <Result
           status="500"
-          title="Algo sali\u00f3 mal"
-          subTitle="La p\u00e1gina encontr\u00f3 un error inesperado."
+          title="Algo salió mal"
+          subTitle="La página encontró un error inesperado."
           extra={
             <Button type="primary" onClick={() => window.location.reload()}>
-              Recargar p\u00e1gina
+              Recargar página
             </Button>
           }
         />

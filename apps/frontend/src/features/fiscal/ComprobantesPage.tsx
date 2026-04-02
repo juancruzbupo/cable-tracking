@@ -62,7 +62,7 @@ export default function ComprobantesPage() {
             { title: 'Fecha', dataIndex: 'fecha', width: 110, render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
             { title: 'Total', dataIndex: 'total', width: 100, render: (t: number) => `$${Number(t).toLocaleString()}` },
             { title: 'Estado', dataIndex: 'estado', width: 100, render: (e: string) => <Tag color={ESTADO_COLORS[e]}>{e}</Tag> },
-            { title: '', width: 50, render: (_: any, r: any) => <Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => fiscalApi.downloadPdf(r.id)} /> },
+            { title: '', width: 50, render: (_: any, r: any) => <Button type="text" size="small" icon={<DownloadOutlined />} aria-label="Descargar PDF" onClick={() => fiscalApi.downloadPdf(r.id)} /> },
           ]}
         />
       </Card>
