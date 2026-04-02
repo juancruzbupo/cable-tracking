@@ -52,6 +52,7 @@ cable-tracking/
 │           ├── shared/                → ErrorBoundary, utils (WhatsApp)
 │           ├── features/              → Feature folders (14 modulos)
 │           ├── hooks/                 → useClients, useClientDetail, useDebounce
+│           Note: ClientsPage usa drawer para vista rapida + ClientDetailPage (/clients/:id) para detalle completo con tabs
 │           ├── services/api.ts        → Axios centralizado con Bearer interceptor
 │           └── types/index.ts         → Interfaces compartidas
 ├── docs/                              → Documentacion del sistema

@@ -92,24 +92,25 @@ Pagina principal de gestion de clientes.
 - **Nuevo cliente** (ADMIN, OPERADOR): crear cliente con nombre, direccion y servicios
 - **Exportar Excel** (ADMIN, OPERADOR): descarga planilla con todos los clientes
 
-**Detalle del cliente (drawer lateral):**
-Al hacer click en un cliente se abre un panel con toda su informacion:
+**Vista rapida (drawer lateral):**
+Al hacer click en el ojo se abre un panel lateral con informacion resumida:
 
-- **Datos basicos**: codigo, nombre, estado, fecha de alta, direccion
-- **Boton WhatsApp**: si el cliente tiene telefono y deuda, envia un mensaje predeterminado por WhatsApp con el detalle de la deuda
-- **Dar de baja / Reactivar**: segun corresponda y el rol del usuario
-- **Servicios**: tarjetas separadas para Cable e Internet mostrando:
-  - Meses de deuda (numero grande rojo o verde)
-  - Meses pagados (numero verde)
-  - Badges de los ultimos 6 meses: verde = pagado, rojo = adeudado, violeta = cubierto por promocion
-  - Boton cancelar servicio individual
-- **Registrar pago manual**: seleccionar servicio y mes a registrar como pagado
-- **Notas**: agregar notas de texto libre sobre el cliente. Solo ADMIN puede borrar notas
-- **Historial**: timeline con todas las acciones realizadas sobre el cliente (quien, que, cuando)
-- **Promociones**: lista de promociones activas asignadas al cliente
-- **Datos fiscales**: tipo de documento, CUIT/DNI, condicion fiscal, razon social, telefono, email, zona, tipo de comprobante (RAMITO o FACTURA)
-- **Equipos**: lista de equipos asignados al cliente con opcion de retirar
-- **Tickets**: lista de tickets de soporte del cliente con opcion de crear nuevo ticket
+- Datos basicos: codigo, nombre, estado, fecha de alta, direccion
+- Servicios con deuda y badges de ultimos 6 meses
+- Registro rapido de pago manual
+- Acciones: dar de baja, reactivar, WhatsApp
+- Boton **"Ver detalle completo"** que abre la pagina dedicada
+
+**Pagina de detalle completa** (`/clients/:id`):
+URL compartible con 8 tabs:
+
+- **Servicios y Deuda**: tarjetas Cable/Internet con deuda, pagados, badges de 12 meses, registrar pago manual, cancelar servicio
+- **Datos Fiscales**: tipo documento, CUIT/DNI, condicion fiscal, razon social, telefono, email, zona, codigo postal, localidad, provincia, tipo comprobante
+- **Equipos**: lista de equipos asignados con fecha de instalacion. Buscar equipo disponible (EN_DEPOSITO) y asignar. Retirar equipo instalado
+- **Tickets**: lista de tickets del cliente. Crear nuevo ticket (tipo + descripcion). Ver estado y antiguedad
+- **Notas**: agregar notas de texto libre. Solo ADMIN puede borrar
+- **Historial**: timeline de audit log con todas las acciones (quien, que, cuando)
+- **Promociones**: ver promos asignadas. Asignar promo de scope CLIENTE seleccionando suscripcion + promocion. Solo ADMIN puede quitar
 - **Documentos**: timeline de ramitos y facturas importados con periodos cubiertos
 
 ---
@@ -174,7 +175,9 @@ Inventario de equipos de la empresa (routers, decodificadores, ONTs, etc).
 
 **Acciones:**
 - **Nuevo equipo** (ADMIN): registrar tipo, marca, modelo, numero de serie
-- **Asignar a cliente** (ADMIN, OPERADOR): solo equipos en deposito
+- **Asignar a cliente** (ADMIN, OPERADOR): solo equipos en deposito. Se puede asignar desde:
+  - La pagina de Equipos: boton "Asignar" en cada equipo disponible → buscar cliente
+  - El detalle del cliente: tab Equipos → buscar equipo disponible
 - **Retirar de cliente** (ADMIN, OPERADOR): registra fecha de retiro y vuelve a deposito
 
 ---

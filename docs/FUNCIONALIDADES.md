@@ -47,7 +47,7 @@
 ## Pagos
 
 - **Importados**: vienen del Excel (ramitos/facturas). Se reimportan completos (destructivo, excepto manuales).
-- **Manuales**: se registran desde el drawer del cliente, seleccionando servicio y mes. Identificados por `MANUAL-*` en numeroDocumento.
+- **Manuales**: se registran desde el detalle del cliente (tab Servicios), seleccionando servicio y mes. Identificados por `MANUAL-*` en numeroDocumento.
 - Solo ADMIN puede eliminar pagos manuales.
 - Los pagos manuales se preservan durante reimportacion de Excel.
 
@@ -128,7 +128,7 @@
 
 ## Tickets de soporte
 
-- **Crear ticket** desde el detalle del cliente: tipo + descripcion opcional.
+- **Crear ticket** desde el detalle del cliente (tab Tickets) o desde la pagina de Tickets: tipo + descripcion opcional.
 - **Tipos**: Sin señal, Lentitud internet, Reconexión, Instalación, Cambio equipo, Otro.
 - **Resolver ticket** con notas de resolución.
 - **Estadisticas**: abiertos, resueltos, distribucion por tipo, tiempo promedio de resolucion (ultimos 30 dias).
