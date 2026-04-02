@@ -40,7 +40,7 @@ export default function DocumentsPage() {
       title: 'Cliente',
       key: 'cliente',
       render: (_: unknown, record: Document) =>
-        record.client ? <a onClick={() => navigate(`/clients?clientId=${record.clientId}`)} style={{ cursor: 'pointer' }}>{record.client.nombreNormalizado}</a> : '—',
+        record.client ? <a href={`/clients?clientId=${record.clientId}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${record.clientId}`); }}>{record.client.nombreNormalizado}</a> : '—',
       ellipsis: true,
     },
     {

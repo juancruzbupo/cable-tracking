@@ -106,7 +106,7 @@ export default function TicketsPage() {
         <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} scroll={{ x: 800 }} columns={[
           { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => {
             if (!r.client) return '—';
-            return <a onClick={() => navigate(`/clients?clientId=${r.client.id}`)} style={{ cursor: 'pointer' }}>{r.client.nombreNormalizado}</a>;
+            return <a href={`/clients?clientId=${r.client.id}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${r.client.id}`); }}>{r.client.nombreNormalizado}</a>;
           }},
           { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={TIPO_COLORS[t]}>{TIPO_LABELS[t] || t}</Tag> },
           { title: 'Descripción', dataIndex: 'descripcion', ellipsis: true, render: (v: string) => v || '—' },

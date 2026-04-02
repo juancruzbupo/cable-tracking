@@ -58,7 +58,7 @@ export default function ComprobantesPage() {
           columns={[
             { title: 'Número', width: 130, render: (_: any, r: any) => `${String(r.puntoVenta).padStart(4, '0')}-${String(r.numero).padStart(8, '0')}` },
             { title: 'Tipo', dataIndex: 'tipo', width: 100, render: (t: string) => <Tag>{t.replace('_', ' ')}</Tag> },
-            { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client ? <a onClick={() => navigate(`/clients?clientId=${r.clientId}`)} style={{ cursor: 'pointer' }}>{r.client.nombreNormalizado}</a> : '—' },
+            { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client ? <a href={`/clients?clientId=${r.clientId}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${r.clientId}`); }}>{r.client.nombreNormalizado}</a> : '—' },
             { title: 'Fecha', dataIndex: 'fecha', width: 110, render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
             { title: 'Total', dataIndex: 'total', width: 100, render: (t: number) => `$${Number(t).toLocaleString()}` },
             { title: 'Estado', dataIndex: 'estado', width: 100, render: (e: string) => <Tag color={ESTADO_COLORS[e]}>{e}</Tag> },

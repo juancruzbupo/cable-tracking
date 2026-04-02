@@ -103,7 +103,7 @@ export default function EquipmentPage() {
           { title: 'Cliente', ellipsis: true, render: (_: any, r: any) => {
             const client = r.assignments?.[0]?.client;
             if (!client) return '—';
-            return <a onClick={() => navigate(`/clients?clientId=${client.id}`)} style={{ cursor: 'pointer' }}>{client.nombreNormalizado}</a>;
+            return <a href={`/clients?clientId=${client.id}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${client.id}`); }}>{client.nombreNormalizado}</a>;
           }},
           ...(canOperate ? [{
             title: '', width: 100,

@@ -147,7 +147,7 @@ export default function CortePage() {
               width: 220,
               ellipsis: true,
               sorter: (a: ClientDebtInfo, b: ClientDebtInfo) => a.nombreNormalizado.localeCompare(b.nombreNormalizado),
-              render: (name: string, r: ClientDebtInfo) => <a onClick={() => navigate(`/clients?clientId=${r.clientId}`)} style={{ cursor: 'pointer', fontWeight: 500 }}>{name}</a>,
+              render: (name: string, r: ClientDebtInfo) => <a href={`/clients?clientId=${r.clientId}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${r.clientId}`); }} style={{ fontWeight: 500 }}>{name}</a>,
             },
             {
               title: 'Dirección',

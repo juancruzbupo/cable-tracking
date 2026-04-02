@@ -115,7 +115,7 @@ export default function ReportesPage() {
               Basado en pagos registrados en el sistema.
             </Typography.Text>
             <Table dataSource={report.clientesSinPago} rowKey="id" pagination={false} size="small" columns={[
-              { title: 'Cliente', dataIndex: 'nombre', render: (name: string, r: any) => <a onClick={() => navigate(`/clients?clientId=${r.id}`)} style={{ cursor: 'pointer' }}>{name}</a> },
+              { title: 'Cliente', dataIndex: 'nombre', render: (name: string, r: any) => <a href={`/clients?clientId=${r.id}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${r.id}`); }}>{name}</a> },
             ]} />
           </Card>
         </>

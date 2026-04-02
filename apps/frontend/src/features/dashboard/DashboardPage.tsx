@@ -109,7 +109,7 @@ export default function DashboardPage() {
       {/* Fila 4 — Gráficos */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} md={12}>
-          <Card title="Tendencia de cobranza (12 meses)">
+          <Card title="Tendencia de cobranza (12 meses)" role="img" aria-label="Gráfico de línea mostrando porcentaje de cobranza de los últimos 12 meses">
             {tendencia?.meses?.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={tendencia.meses}>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} md={12}>
-          <Card title="Distribución de deuda">
+          <Card title="Distribución de deuda" role="img" aria-label="Gráfico de torta mostrando distribución de clientes por nivel de deuda">
             {pie.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
@@ -185,7 +185,7 @@ export default function DashboardPage() {
           {ticketsDash.ultimosAbiertos?.length > 0 && (
             <Card title="Tickets abiertos más antiguos" size="small" style={{ marginTop: 16 }}>
               <Table dataSource={ticketsDash.ultimosAbiertos} rowKey="id" size="small" pagination={false} columns={[
-                { title: 'Cliente', dataIndex: 'cliente', render: (name: string, r: any) => <a onClick={() => navigate(`/clients?clientId=${r.clienteId}`)} style={{ cursor: 'pointer' }}>{name}</a> },
+                { title: 'Cliente', dataIndex: 'cliente', render: (name: string, r: any) => <a href={`/clients?clientId=${r.clienteId}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${r.clienteId}`); }}>{name}</a> },
                 { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={{ SIN_SENIAL: 'red', LENTITUD_INTERNET: 'orange', RECONEXION: 'blue', INSTALACION: 'green', CAMBIO_EQUIPO: 'purple' }[t] || 'default'}>{t}</Tag> },
                 { title: 'Descripción', dataIndex: 'descripcion', ellipsis: true, render: (v: string) => v || '—' },
                 { title: 'Desde hace', dataIndex: 'desdeHace', width: 130 },

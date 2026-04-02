@@ -41,19 +41,21 @@ export default function LoginPage() {
         <Form onFinish={onFinish} layout="vertical" size="large">
           <Form.Item
             name="email"
+            label="Email"
             rules={[
               { required: true, message: 'Ingresa tu email' },
               { type: 'email', message: 'Email invalido' },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="Email" autoFocus />
+            <Input prefix={<MailOutlined />} placeholder="email@ejemplo.com" autoFocus />
           </Form.Item>
 
           <Form.Item
             name="password"
+            label="Contraseña"
             rules={[{ required: true, message: 'Ingresa tu contraseña' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="Contraseña" />
+            <Input.Password prefix={<LockOutlined />} placeholder="Tu contraseña" />
           </Form.Item>
 
           <Form.Item>

@@ -86,6 +86,7 @@ export default function ClientsPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: 260 }}
             allowClear
+            aria-label="Buscar clientes por nombre o código"
           />
           <Select
             placeholder="Estado"
@@ -154,7 +155,7 @@ export default function ClientsPage() {
                   {name}
                   {(r.ticketsAbiertos ?? 0) > 0 && (
                     <Tooltip title={`${r.ticketsAbiertos} ticket(s) abierto(s)`}>
-                      <ExclamationCircleOutlined style={{ color: '#faad14', marginLeft: 6 }} />
+                      <ExclamationCircleOutlined style={{ color: '#faad14', marginLeft: 6 }} aria-label={`${r.ticketsAbiertos} tickets abiertos`} />
                     </Tooltip>
                   )}
                 </span>

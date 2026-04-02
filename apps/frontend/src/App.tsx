@@ -66,7 +66,8 @@ function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} breakpoint="lg" style={{ background: '#001529', overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0 }}>
+      <a href="#main-content" style={{ position: 'absolute', top: -40, left: 0, zIndex: 1000, background: '#1677ff', color: '#fff', padding: '8px 16px', transition: 'top 0.2s' }} onFocus={(e) => { e.currentTarget.style.top = '0'; }} onBlur={(e) => { e.currentTarget.style.top = '-40px'; }}>Ir al contenido</a>
+      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} breakpoint="lg" role="navigation" aria-label="Menú principal" style={{ background: '#001529', overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0 }}>
         <div style={{
           height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', fontWeight: 700, fontSize: collapsed ? 14 : 16, whiteSpace: 'nowrap', overflow: 'hidden',
@@ -106,7 +107,7 @@ function AppLayout() {
             </Dropdown>
           )}
         </Header>
-        <Content style={{ margin: '16px 12px' }}>
+        <Content id="main-content" role="main" style={{ margin: '16px 12px' }}>
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
