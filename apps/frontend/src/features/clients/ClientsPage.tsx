@@ -27,7 +27,7 @@ export default function ClientsPage() {
   useEffect(() => {
     const cid = searchParams.get('clientId');
     if (cid) detail.openDetail(cid);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [exporting, setExporting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const canExport = hasRole('ADMIN', 'OPERADOR');

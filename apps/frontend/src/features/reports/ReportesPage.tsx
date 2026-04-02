@@ -30,7 +30,7 @@ export default function ReportesPage() {
   };
 
   // Auto-load on mount
-  useEffect(() => { loadReport(month); }, []);
+  useEffect(() => { loadReport(month); }, [month]);
 
   const handleBatch = async () => {
     try {

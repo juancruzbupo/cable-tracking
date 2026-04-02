@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Card, Upload, Button, Alert, Table, Tabs, Statistic, Row, Col,
   Tag, Typography, Space, Modal, Collapse, Progress, message,
@@ -25,6 +25,9 @@ const empty: State = { file: null, preview: null, result: null, loading: false, 
 function ImportSection({ tipo }: { tipo: ImportType }) {
   const [s, set] = useState<State>({ ...empty });
   const [importProgress, setImportProgress] = useState(0);
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => { return () => { if (progressRef.current) clearInterval(progressRef.current); }; }, []);
 
   const labels: Record<ImportType, string> = { clientes: 'Clientes', ramitos: 'Ramitos', facturas: 'Facturas' };
   const rules: Record<ImportType, string> = {
@@ -61,17 +64,17 @@ function ImportSection({ tipo }: { tipo: ImportType }) {
     if (!s.file) return;
     set((p) => ({ ...p, loading: true, error: null }));
     setImportProgress(0);
-    const interval = setInterval(() => {
+    progressRef.current = setInterval(() => {
       setImportProgress((prev) => prev >= 90 ? 90 : prev + Math.random() * 8);
     }, 300);
     try {
       const result = await importApi.execute(s.file, tipo);
-      clearInterval(interval);
+      if (progressRef.current) clearInterval(progressRef.current);
       setImportProgress(100);
       set((p) => ({ ...p, result, loading: false }));
       message.success(`${labels[tipo]}: ${result.validRows} filas importadas`);
     } catch {
-      clearInterval(interval);
+      if (progressRef.current) clearInterval(progressRef.current);
       setImportProgress(0);
       set((p) => ({ ...p, loading: false, error: 'Error en la importación' }));
       message.error('Error en la importación');
