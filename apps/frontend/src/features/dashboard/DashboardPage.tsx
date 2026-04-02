@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const navigate = useNavigate();
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -50,8 +51,6 @@ export default function DashboardPage() {
 
   if (initialLoading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (error) return <Alert type="error" message={error} showIcon />;
-  const navigate = useNavigate();
-
   if (!data) return null;
 
   const { resumen, deuda } = data;
