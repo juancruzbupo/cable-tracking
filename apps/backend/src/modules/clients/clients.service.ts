@@ -8,6 +8,17 @@ export { SubscriptionDebt, ClientDebtInfo } from './debt.service';
 
 export interface ClientDetailResult extends ClientDebtInfo {
   nombreOriginal: string;
+  tipoDocumento: string | null;
+  numeroDocFiscal: string | null;
+  condicionFiscal: string;
+  razonSocial: string | null;
+  telefono: string | null;
+  email: string | null;
+  codigoPostal: string | null;
+  localidad: string | null;
+  provincia: string | null;
+  zona: string | null;
+  tipoComprobante: string;
   documents: Array<{
     id: string;
     tipo: string;
@@ -176,6 +187,17 @@ export class ClientsService {
     return {
       ...debt,
       nombreOriginal: client.nombreOriginal,
+      tipoDocumento: client.tipoDocumento,
+      numeroDocFiscal: client.numeroDocFiscal,
+      condicionFiscal: client.condicionFiscal,
+      razonSocial: client.razonSocial,
+      telefono: client.telefono,
+      email: client.email,
+      codigoPostal: client.codigoPostal,
+      localidad: client.localidad,
+      provincia: client.provincia,
+      zona: client.zona,
+      tipoComprobante: client.tipoComprobante,
       documents: documents.map((d) => ({
         id: d.id,
         tipo: d.tipo,
