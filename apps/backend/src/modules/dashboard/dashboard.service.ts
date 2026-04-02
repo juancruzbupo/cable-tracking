@@ -121,7 +121,11 @@ export class DashboardService {
     });
 
     const result = clients
-      .map((c) => this.clientsService.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions))
+      .map((c) => ({
+        ...this.clientsService.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions),
+        zona: c.zona,
+        telefono: c.telefono,
+      }))
       .filter((d) => d.requiereCorte)
       .sort((a, b) => b.cantidadDeuda - a.cantidadDeuda);
 
