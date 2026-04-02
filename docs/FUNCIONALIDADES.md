@@ -104,8 +104,9 @@
 ## Reportes
 
 - **Reporte de cobranza mensual**: clientes con pago, recaudacion por servicio, comparacion con mes anterior, top 20 sin pago.
-- **Export Excel**: clientes con deuda, lista de corte con desglose cable/internet.
+- **Export Excel**: clientes con deuda, lista de corte con desglose cable/internet, zona, telefono.
 - **Export PDF**: lista de corte ordenada por direccion (para tecnicos).
+- **Pagina de corte**: stats por servicio (solo cable/solo internet/ambos), filtros por zona y busqueda, tabla con servicios a cortar, deuda total con colores por gravedad, ultimo pago, boton WhatsApp por cliente.
 - **Facturas masivas**: ZIP con un PDF por cliente activo.
 
 ## Importacion de datos
