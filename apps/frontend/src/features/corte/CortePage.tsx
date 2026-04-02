@@ -129,20 +129,25 @@ export default function CortePage() {
             {
               title: 'Cliente',
               dataIndex: 'nombreNormalizado',
+              width: 220,
               ellipsis: true,
               sorter: (a: ClientDebtInfo, b: ClientDebtInfo) => a.nombreNormalizado.localeCompare(b.nombreNormalizado),
-              render: (name: string, r: ClientDebtInfo) => (
-                <div>
-                  <div style={{ fontWeight: 500 }}>{name}</div>
-                  <div style={{ fontSize: 11, color: '#999' }}>
-                    {r.calle || 'Sin dirección'}{(r as any).zona ? ` · ${(r as any).zona}` : ''}
-                  </div>
-                </div>
+              render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span>,
+            },
+            {
+              title: 'Dirección',
+              dataIndex: 'calle',
+              width: 180,
+              ellipsis: true,
+              render: (v: string | null, r: any) => (
+                <span style={{ fontSize: 12, color: '#666' }}>
+                  {v || '—'}{r.zona ? ` · ${r.zona}` : ''}
+                </span>
               ),
             },
             {
               title: 'Servicios a cortar',
-              width: 160,
+              width: 180,
               render: (_: unknown, r: ClientDebtInfo) => (
                 <Space direction="vertical" size={2}>
                   {r.requiereCorteCable && (
