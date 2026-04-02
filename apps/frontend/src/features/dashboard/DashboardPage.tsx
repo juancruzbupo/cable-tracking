@@ -50,9 +50,10 @@ export default function DashboardPage() {
 
   if (initialLoading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (error) return <Alert type="error" message={error} showIcon />;
+  const navigate = useNavigate();
+
   if (!data) return null;
 
-  const navigate = useNavigate();
   const { resumen, deuda } = data;
   const d = data as any; // extended fields
 
