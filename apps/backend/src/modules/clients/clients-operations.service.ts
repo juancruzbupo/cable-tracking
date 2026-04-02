@@ -6,12 +6,14 @@ import dayjs from 'dayjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { normalizeName } from '../../common/utils/normalize-name.util';
+import { FiscalService } from '../fiscal/fiscal.service';
 
 @Injectable()
 export class ClientsOperationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly fiscalService: FiscalService,
   ) {}
 
   // ── Alta de cliente ──────────────────────────────────────
@@ -188,7 +190,13 @@ export class ClientsOperationsService {
       year, month, tipo: sub.tipo,
     });
 
-    return { ...pp, document: doc };
+    // Emitir comprobante automáticamente si el cliente tiene tipoComprobante = FACTURA
+    let comprobante = null;
+    try {
+      comprobante = await this.fiscalService.emitirComprobanteParaPago(clientId, subId, pp.id, userId);
+    } catch { /* silencioso — el pago se registró ok, el comprobante es secundario */ }
+
+    return { ...pp, document: doc, comprobante };
   }
 
   async deleteManualPayment(userId: string, clientId: string, subId: string, periodId: string) {
