@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Select, Tag, Space, Typography, Button, Tabs,
+  Card, Select, Tag, Space, Typography, Button, Tabs, Switch,
   message, Descriptions, Timeline, Badge, Divider, DatePicker,
   Modal, Input, Spin, List,
 } from 'antd';
@@ -194,7 +194,22 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
                 <Descriptions.Item label="Teléfono">{d.telefono || '—'}</Descriptions.Item>
                 <Descriptions.Item label="Email">{d.email || '—'}</Descriptions.Item>
                 <Descriptions.Item label="Zona">{d.zona || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Comprobante"><Tag color={d.tipoComprobante === 'FACTURA' ? 'blue' : 'default'}>{d.tipoComprobante || 'RAMITO'}</Tag></Descriptions.Item>
+                <Descriptions.Item label="Comprobante">
+                  <Space>
+                    <Tag color={d.tipoComprobante === 'FACTURA' ? 'blue' : 'default'}>{d.tipoComprobante || 'RAMITO'}</Tag>
+                    {canOperate && (
+                      <Switch size="small" checked={d.tipoComprobante === 'FACTURA'}
+                        checkedChildren="Factura" unCheckedChildren="Ramito"
+                        onChange={async (checked) => {
+                          try {
+                            await clientsApi.updateComprobanteConfig(data.clientId, { tipoComprobante: checked ? 'FACTURA' : 'RAMITO' });
+                            message.success(`Comprobante: ${checked ? 'FACTURA' : 'RAMITO'}`);
+                            onRefresh();
+                          } catch (err) { message.error(getErrorMessage(err)); }
+                        }} />
+                    )}
+                  </Space>
+                </Descriptions.Item>
               </Descriptions>
             ) : (
               <Space direction="vertical" style={{ width: '100%' }} size={8}>
