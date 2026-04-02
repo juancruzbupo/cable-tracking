@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Menu, Tag, Badge, Button, Spin, Dropdown } from 'antd';
+import { Layout, Menu, Tag, Button, Spin, Dropdown } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, UploadOutlined, FileTextOutlined,
   ScissorOutlined, UserOutlined, LogoutOutlined, DollarOutlined, BarChartOutlined,
@@ -53,7 +53,7 @@ function AppLayout() {
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/clients', icon: <TeamOutlined />, label: 'Clientes' },
     { key: '/corte', icon: <ScissorOutlined />, label: 'Para Corte' },
-    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <Badge count={ticketsAbiertos} size="small" dot={ticketsAbiertos > 0}><ExclamationCircleOutlined /></Badge>, label: 'Tickets' }] : []),
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: ticketsAbiertos > 0 ? `Tickets (${ticketsAbiertos})` : 'Tickets' }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/equipment', icon: <ToolOutlined />, label: 'Equipos' }] : []),
     // Consultas
     { key: '/documents', icon: <FileTextOutlined />, label: 'Documentos' },
