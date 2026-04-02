@@ -39,15 +39,15 @@ export default function PlansPage() {
       </div>
 
       <Card>
-        <Table dataSource={plans} rowKey="id" loading={loading} pagination={false} scroll={{ x: 700 }} columns={[
-          { title: 'Nombre', dataIndex: 'nombre', ellipsis: true },
-          { title: 'Tipo', dataIndex: 'tipo', width: 100, render: (t: string) => <Tag color={t === 'CABLE' ? 'blue' : 'green'}>{t}</Tag> },
+        <Table dataSource={plans} rowKey="id" loading={loading} pagination={false} scroll={{ x: 700 }} tableLayout="fixed" columns={[
+          { title: 'Nombre', dataIndex: 'nombre', width: 200, ellipsis: true },
+          { title: 'Tipo', dataIndex: 'tipo', width: 110, render: (t: string) => <Tag color={t === 'CABLE' ? 'blue' : 'green'}>{t}</Tag> },
           { title: 'Precio', dataIndex: 'precio', width: 120, render: (p: number) => p > 0 ? `$${Number(p).toLocaleString()}` : <Tag color="orange">Sin precio</Tag> },
-          { title: 'Suscripciones', width: 120, render: (_: unknown, r: ServicePlan) => r._count?.subscriptions ?? 0 },
-          { title: 'Activo', dataIndex: 'activo', width: 80, render: (v: boolean, r: ServicePlan) => (
+          { title: 'Subs', width: 80, render: (_: unknown, r: ServicePlan) => r._count?.subscriptions ?? 0 },
+          { title: 'Activo', dataIndex: 'activo', width: 70, render: (v: boolean, r: ServicePlan) => (
             <Switch checked={v} size="small" onChange={(checked) => handleUpdate(r.id, { activo: checked })} />
           )},
-          { title: 'Editar precio', width: 140, render: (_: unknown, r: ServicePlan) => (
+          { title: 'Editar precio', width: 130, render: (_: unknown, r: ServicePlan) => (
             <InputNumber size="small" value={Number(r.precio)} min={0} step={1000} style={{ width: 120 }}
               onBlur={(e) => { const v = Number(e.target.value); if (!isNaN(v) && v !== Number(r.precio)) { message.loading('Guardando...', 1); handleUpdate(r.id, { precio: v }); } }} />
           )},
