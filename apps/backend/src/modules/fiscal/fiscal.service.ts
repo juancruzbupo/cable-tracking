@@ -5,6 +5,7 @@ import { AuditService } from '../../common/audit/audit.service';
 import { MockFiscalProvider } from './providers/mock-fiscal.provider';
 import { TusFacturasProvider } from './providers/tusFacturas.provider';
 import type { IFiscalProvider, ComprobanteInput } from './providers/fiscal-provider.interface';
+import { calcularPrecioConPromo } from '../../common/utils/promotion-calculator.util';
 
 @Injectable()
 export class FiscalService {
@@ -112,12 +113,41 @@ export class FiscalService {
       this.logger.log(`Cliente ${client.nombreNormalizado}: tipoComprobante=RAMITO, no se emite comprobante fiscal`);
       return null;
     }
-    const sub = await this.prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        plan: { include: { promotions: { where: { activa: true } } } },
+        clientPromotions: { include: { promotion: true } },
+      },
+    });
 
     const esMock = config.providerName === 'mock';
     const tipo = this.determinarTipoComprobante(config.condicionFiscal, client.condicionFiscal, esMock);
-    const precio = sub?.plan ? Number(sub.plan.precio) : 0;
-    const iva = this.calcularIVA(precio, config.condicionFiscal);
+    const precioBase = sub?.plan ? Number(sub.plan.precio) : 0;
+
+    // Recopilar promos activas (del plan + asignadas al cliente)
+    const now = new Date();
+    const promosActivas: Array<{ id: string; nombre: string; tipo: any; valor: number; fechaInicio: Date; fechaFin: Date }> = [
+      ...(sub?.plan?.promotions || []).filter((p) => p.activa && new Date(p.fechaInicio) <= now && new Date(p.fechaFin) >= now)
+        .map((p) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo, valor: Number(p.valor), fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })),
+      ...(sub?.clientPromotions || []).filter((cp) => cp.promotion.activa && new Date(cp.promotion.fechaInicio) <= now && new Date(cp.promotion.fechaFin) >= now)
+        .map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo, valor: Number(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
+    ];
+
+    const precioCalc = calcularPrecioConPromo(precioBase, promosActivas);
+    const precioFinal = precioCalc.precioFinal;
+    const iva = this.calcularIVA(precioFinal, config.condicionFiscal);
+
+    // Detalle del comprobante
+    const detalle: Array<{ descripcion: string; cantidad: number; precioUnitario: number; descuento?: number }> = [
+      { descripcion: `${sub?.tipo || 'Servicio'} — ${sub?.plan?.nombre || 'Sin plan'}`, cantidad: 1, precioUnitario: precioBase },
+    ];
+    if (precioCalc.promoAplicada) {
+      detalle.push({
+        descripcion: `Promo: ${precioCalc.promoAplicada.nombre} (${precioCalc.promoAplicada.tipo === 'PORCENTAJE' ? precioCalc.promoAplicada.valor + '%' : precioCalc.promoAplicada.tipo === 'MESES_GRATIS' ? 'Mes gratis' : '$' + precioCalc.promoAplicada.valor})`,
+        cantidad: 1, precioUnitario: 0, descuento: precioCalc.descuento,
+      });
+    }
 
     const input: ComprobanteInput = {
       tipo,
@@ -130,7 +160,8 @@ export class FiscalService {
         condicionFiscal: client.condicionFiscal,
         domicilio: client.calle || undefined,
       },
-      detalle: [{ descripcion: `${sub?.tipo || 'Servicio'} — ${sub?.plan?.nombre || 'Sin plan'}`, cantidad: 1, precioUnitario: precio }],
+      detalle,
+      descuentoGlobal: precioCalc.descuento > 0 ? precioCalc.descuento : undefined,
     };
 
     const provider = await this.getProvider();
@@ -142,7 +173,7 @@ export class FiscalService {
         tipo, numero: output.numero, puntoVenta: config.puntoVenta, fecha: new Date(),
         emisorCuit: config.cuit, emisorRazonSocial: config.razonSocial, emisorCondicion: config.condicionFiscal,
         receptorDoc: client.numeroDocFiscal || '0', receptorNombre: client.razonSocial || client.nombreNormalizado, receptorCondicion: client.condicionFiscal,
-        subtotal: precio, iva, total: precio + iva,
+        subtotal: precioFinal, descuento: precioCalc.descuento, iva, total: precioFinal + iva,
         detalle: input.detalle,
         estado: output.cae ? EstadoComprobante.EMITIDO : EstadoComprobante.PENDIENTE,
         cae: output.cae, caeFechaVto: output.caeFechaVto, providerResponse: output.providerResponse,
