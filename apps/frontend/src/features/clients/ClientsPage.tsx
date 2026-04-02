@@ -184,8 +184,8 @@ export default function ClientsPage() {
               ),
             },
             {
-              title: 'Estado',
-              width: 100,
+              title: 'Scoring',
+              width: 90,
               render: (_: unknown, r: any) => {
                 const s = r.scoring;
                 if (!s) return '—';
