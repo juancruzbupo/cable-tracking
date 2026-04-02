@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ClientStatus } from '@prisma/client';
+import dayjs from 'dayjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AuditService } from '../../common/audit/audit.service';
 import { ClientsService } from '../clients/clients.service';
 
 const BATCH_SIZE = 500;
+const MESES_INACTIVIDAD_BAJA = 12;
 
 @Injectable()
 export class SchedulerService {
@@ -14,6 +17,7 @@ export class SchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clientsService: ClientsService,
+    private readonly audit: AuditService,
   ) {}
 
   getStatus() {
@@ -73,7 +77,57 @@ export class SchedulerService {
       if (subs.length < BATCH_SIZE) break;
     }
 
+    // Auto-baja de suscripciones con 12+ meses sin pago
+    const autoDeactivated = await this.deactivateStaleSubscriptions();
+
     this.lastRun = { at: new Date(), processed, conCorte };
-    this.logger.log(`Recalculo completo: ${processed} suscripciones, ${conCorte} en corte (umbral: ${umbralCorte})`);
+    this.logger.log(`Recalculo completo: ${processed} suscripciones, ${conCorte} en corte (umbral: ${umbralCorte})${autoDeactivated > 0 ? `, ${autoDeactivated} subs auto-baja` : ''}`);
+  }
+
+  /**
+   * Da de baja suscripciones individuales con 12+ meses sin ningún pago.
+   * El cliente puede seguir activo si tiene otro servicio al día.
+   */
+  private async deactivateStaleSubscriptions(): Promise<number> {
+    const now = dayjs();
+    const subs = await this.prisma.subscription.findMany({
+      where: { estado: ClientStatus.ACTIVO, client: { estado: ClientStatus.ACTIVO } },
+      include: {
+        paymentPeriods: { select: { year: true, month: true }, orderBy: [{ year: 'desc' }, { month: 'desc' }], take: 1 },
+      },
+    });
+
+    const toDeactivate: string[] = [];
+    for (const sub of subs) {
+      let mesesSinPago: number;
+      if (sub.paymentPeriods.length === 0) {
+        mesesSinPago = now.diff(dayjs(sub.fechaAlta), 'month');
+      } else {
+        const last = sub.paymentPeriods[0];
+        mesesSinPago = now.diff(dayjs(new Date(last.year, last.month - 1)), 'month');
+      }
+      if (mesesSinPago >= MESES_INACTIVIDAD_BAJA) toDeactivate.push(sub.id);
+    }
+
+    if (toDeactivate.length === 0) return 0;
+
+    await this.prisma.subscription.updateMany({ where: { id: { in: toDeactivate } }, data: { estado: ClientStatus.BAJA } });
+
+    // Obtener un admin para el audit log
+    const admin = await this.prisma.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } });
+    if (admin) {
+      await this.prisma.auditLog.createMany({
+        data: toDeactivate.map((id) => ({
+          userId: admin.id,
+          action: 'SUBSCRIPTION_AUTO_DEACTIVATED',
+          entityType: 'SUBSCRIPTION',
+          entityId: id,
+          metadata: { reason: `${MESES_INACTIVIDAD_BAJA}+ meses sin pago`, automated: true },
+        })),
+      });
+    }
+
+    this.logger.log(`Auto-baja: ${toDeactivate.length} suscripciones con ${MESES_INACTIVIDAD_BAJA}+ meses sin pago`);
+    return toDeactivate.length;
   }
 }
