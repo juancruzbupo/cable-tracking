@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, Row, Col, Statistic, Spin, Alert, Table, Tag, Typography } from 'antd';
 import {
   TeamOutlined, WarningOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  ArrowUpOutlined, ArrowDownOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import dayjs from 'dayjs';
 import { dashboardApi, getErrorMessage } from '../../services/api';
 import type { DashboardMetrics } from '../../types';
 
 const COLORS = ['#52c41a', '#faad14', '#ff7a45', '#f5222d'];
+const REFRESH_INTERVAL = 60_000;
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
@@ -17,24 +19,35 @@ export default function DashboardPage() {
   const [crecimiento, setCrecimiento] = useState<any>(null);
   const [zonas, setZonas] = useState<any>(null);
   const [ticketsDash, setTicketsDash] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      dashboardApi.getMetrics(),
-      dashboardApi.getTendencia().catch(() => null),
-      dashboardApi.getMrr().catch(() => null),
-      dashboardApi.getCrecimiento().catch(() => null),
-      dashboardApi.getZonas().catch(() => null),
-      dashboardApi.getTickets().catch(() => null),
-    ])
-      .then(([m, t, mr, c, z, tk]) => { setData(m); setTendencia(t); setMrr(mr); setCrecimiento(c); setZonas(z); setTicketsDash(tk); })
-      .catch((err) => setError(getErrorMessage(err)))
-      .finally(() => setLoading(false));
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true);
+    try {
+      const [m, t, mr, c, z, tk] = await Promise.all([
+        dashboardApi.getMetrics(),
+        dashboardApi.getTendencia().catch(() => null),
+        dashboardApi.getMrr().catch(() => null),
+        dashboardApi.getCrecimiento().catch(() => null),
+        dashboardApi.getZonas().catch(() => null),
+        dashboardApi.getTickets().catch(() => null),
+      ]);
+      setData(m); setTendencia(t); setMrr(mr); setCrecimiento(c); setZonas(z); setTicketsDash(tk);
+      setLastUpdate(new Date());
+    } catch (err) { setError(getErrorMessage(err)); }
+    finally { setInitialLoading(false); setRefreshing(false); }
   }, []);
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  useEffect(() => {
+    load();
+    const interval = setInterval(() => load(true), REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  if (initialLoading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (error) return <Alert type="error" message={error} showIcon />;
   if (!data) return null;
 
@@ -52,7 +65,13 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <Typography.Title level={3}>Dashboard</Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>Dashboard</Typography.Title>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {lastUpdate && `Actualizado ${dayjs(lastUpdate).format('HH:mm:ss')}`}
+          <SyncOutlined spin={refreshing} style={{ marginLeft: 8, cursor: 'pointer' }} onClick={() => load()} />
+        </Typography.Text>
+      </div>
 
       {/* Fila 1 — KPIs existentes */}
       <Row gutter={[16, 16]}>

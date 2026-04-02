@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   Card, Upload, Button, Alert, Table, Tabs, Statistic, Row, Col,
-  Tag, Typography, Space, Modal, Descriptions, Collapse, message,
+  Tag, Typography, Space, Modal, Collapse, Progress, message,
 } from 'antd';
 import {
-  UploadOutlined, CheckCircleOutlined, WarningOutlined, FileExcelOutlined, HistoryOutlined,
+  UploadOutlined, CheckCircleOutlined, WarningOutlined, FileExcelOutlined, HistoryOutlined, PlusOutlined,
 } from '@ant-design/icons';
 import { importApi } from '../../services/api';
 import type { ImportPreview, ImportResult, ImportLog } from '../../types';
@@ -24,6 +24,7 @@ const empty: State = { file: null, preview: null, result: null, loading: false, 
 
 function ImportSection({ tipo }: { tipo: ImportType }) {
   const [s, set] = useState<State>({ ...empty });
+  const [importProgress, setImportProgress] = useState(0);
 
   const labels: Record<ImportType, string> = { clientes: 'Clientes', ramitos: 'Ramitos', facturas: 'Facturas' };
   const rules: Record<ImportType, string> = {
@@ -59,11 +60,19 @@ function ImportSection({ tipo }: { tipo: ImportType }) {
   const doImport = async () => {
     if (!s.file) return;
     set((p) => ({ ...p, loading: true, error: null }));
+    setImportProgress(0);
+    const interval = setInterval(() => {
+      setImportProgress((prev) => prev >= 90 ? 90 : prev + Math.random() * 8);
+    }, 300);
     try {
       const result = await importApi.execute(s.file, tipo);
+      clearInterval(interval);
+      setImportProgress(100);
       set((p) => ({ ...p, result, loading: false }));
       message.success(`${labels[tipo]}: ${result.validRows} filas importadas`);
     } catch {
+      clearInterval(interval);
+      setImportProgress(0);
       set((p) => ({ ...p, loading: false, error: 'Error en la importación' }));
       message.error('Error en la importación');
     }
@@ -87,6 +96,14 @@ function ImportSection({ tipo }: { tipo: ImportType }) {
 
       {s.error && <Alert type="error" message={s.error} closable style={{ marginBottom: 16 }} />}
       {s.previewing && <Card loading style={{ marginBottom: 16 }}>Analizando...</Card>}
+
+      {s.loading && (
+        <Card style={{ marginBottom: 16 }}>
+          <Typography.Text>Importando {labels[tipo].toLowerCase()}...</Typography.Text>
+          <Progress percent={Math.round(importProgress)} status="active" strokeColor={{ from: '#108ee9', to: '#1677ff' }} style={{ marginTop: 8 }} />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>Esto puede tardar unos segundos...</Typography.Text>
+        </Card>
+      )}
 
       {/* Preview */}
       {pv && !rs && (
@@ -136,32 +153,24 @@ function ImportSection({ tipo }: { tipo: ImportType }) {
 
       {/* Result */}
       {rs && (
-        <Card title={<><CheckCircleOutlined style={{ color: '#52c41a' }} /> Importación completada</>} style={{ marginBottom: 16 }}>
-          <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
-            <Descriptions.Item label="Tipo">{rs.tipo}</Descriptions.Item>
-            <Descriptions.Item label="Total">{rs.totalRows}</Descriptions.Item>
-            <Descriptions.Item label="Válidas"><span style={{ color: '#52c41a' }}>{rs.validRows}</span></Descriptions.Item>
-            <Descriptions.Item label="Inválidas"><span style={{ color: rs.invalidRows > 0 ? '#f5222d' : undefined }}>{rs.invalidRows}</span></Descriptions.Item>
-            {rs.newClients > 0 && <Descriptions.Item label="Clientes nuevos">{rs.newClients}</Descriptions.Item>}
-            {rs.updatedClients > 0 && <Descriptions.Item label="Actualizados (baja)">{rs.updatedClients}</Descriptions.Item>}
-            {rs.documentsCreated > 0 && <Descriptions.Item label="Documentos">{rs.documentsCreated}</Descriptions.Item>}
-            {rs.periodsCreated > 0 && <Descriptions.Item label="Períodos">{rs.periodsCreated}</Descriptions.Item>}
-          </Descriptions>
+        <Card style={{ marginBottom: 16 }}>
+          <Typography.Title level={5} style={{ marginBottom: 16 }}>Importación completada</Typography.Title>
+          <Row gutter={[16, 16]}>
+            <Col xs={8}><Statistic title="Total procesados" value={rs.totalRows} valueStyle={{ color: '#1677ff' }} /></Col>
+            <Col xs={8}><Statistic title="Válidos" value={rs.validRows} valueStyle={{ color: '#52c41a' }} /></Col>
+            <Col xs={8}><Statistic title="Con error" value={rs.invalidRows} valueStyle={{ color: rs.invalidRows > 0 ? '#ff4d4f' : '#8c8c8c' }} /></Col>
+            {tipo === 'clientes' && rs.newClients > 0 && <Col xs={12}><Statistic title="Clientes nuevos" value={rs.newClients} prefix={<PlusOutlined />} valueStyle={{ color: '#52c41a' }} /></Col>}
+            {tipo === 'clientes' && rs.updatedClients > 0 && <Col xs={12}><Statistic title="Actualizados" value={rs.updatedClients} valueStyle={{ color: '#faad14' }} /></Col>}
+            {rs.documentsCreated > 0 && <Col xs={12}><Statistic title="Documentos creados" value={rs.documentsCreated} /></Col>}
+            {rs.periodsCreated > 0 && <Col xs={12}><Statistic title="Períodos registrados" value={rs.periodsCreated} /></Col>}
+          </Row>
 
           {rs.errors.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <Typography.Text type="danger">{rs.errors.length} errores:</Typography.Text>
-              <Table dataSource={rs.errors.slice(0, 50)} rowKey={(_, i) => String(i)} size="small" pagination={{ pageSize: 10 }} style={{ marginTop: 8 }}
-                columns={[
-                  { title: 'Fila', dataIndex: 'row', width: 80 },
-                  { title: 'Error', dataIndex: 'message' },
-                  { title: 'Valor', dataIndex: 'value', render: (v: unknown) => v ? String(v) : '—' },
-                ]}
-              />
-            </div>
+            <Alert type="warning" showIcon style={{ marginTop: 16 }} message={`${rs.errors.length} registro(s) con problemas`}
+              description={<ul style={{ marginBottom: 0, paddingLeft: 20 }}>{rs.errors.slice(0, 5).map((e, i) => <li key={i} style={{ fontSize: 12 }}>{e.message} (fila {e.row})</li>)}{rs.errors.length > 5 && <li style={{ fontSize: 12 }}>... y {rs.errors.length - 5} más</li>}</ul>} />
           )}
 
-          <Button style={{ marginTop: 16 }} type="primary" onClick={() => set({ ...empty })}>Nueva importación</Button>
+          <Button style={{ marginTop: 16 }} type="primary" onClick={() => { set({ ...empty }); setImportProgress(0); }}>Nueva importación</Button>
         </Card>
       )}
     </div>

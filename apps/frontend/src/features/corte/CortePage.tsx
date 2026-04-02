@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button, Space, Tooltip, message, Select, Input } from 'antd';
+import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button, Space, Tooltip, message, Select, Input, Modal, List, Progress } from 'antd';
 import { WarningOutlined, ScissorOutlined, FileExcelOutlined, FilePdfOutlined, WhatsAppOutlined, SearchOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { dashboardApi, billingApi, clientsApi, getErrorMessage } from '../../services/api';
@@ -15,6 +15,8 @@ export default function CortePage() {
   const [search, setSearch] = useState('');
   const { hasRole } = useAuth();
   const canExport = hasRole('ADMIN', 'OPERADOR');
+  const [masivoOpen, setMasivoOpen] = useState(false);
+  const [enviados, setEnviados] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     dashboardApi
@@ -38,6 +40,8 @@ export default function CortePage() {
   const totalCable = filtered.filter((c) => c.requiereCorteCable).length;
   const totalInternet = filtered.filter((c) => c.requiereCorteInternet).length;
   const totalAmbos = filtered.filter((c) => c.requiereCorteCable && c.requiereCorteInternet).length;
+  const clientesConTel = filtered.filter((c: any) => c.telefono);
+
   const handleExportCorte = () => {
     if (filtered.length === 0) return;
     const rows = filtered.map((c, i) => ({
@@ -69,6 +73,9 @@ export default function CortePage() {
         <Typography.Title level={3} style={{ margin: 0 }}><ScissorOutlined /> Lista de Corte</Typography.Title>
         {canExport && (
           <Space>
+            <Button icon={<WhatsAppOutlined style={{ color: '#25D366' }} />} onClick={() => { setEnviados(new Set()); setMasivoOpen(true); }} disabled={clientesConTel.length === 0}>
+              Recordatorios ({clientesConTel.length})
+            </Button>
             <Button icon={<FilePdfOutlined />} onClick={() => billingApi.downloadCortePdf().then(() => message.success('PDF descargado')).catch((e) => message.error(getErrorMessage(e)))}>PDF</Button>
             <Button icon={<FileExcelOutlined />} onClick={handleExportCorte} disabled={filtered.length === 0}>Excel</Button>
           </Space>
@@ -204,6 +211,55 @@ export default function CortePage() {
           ]}
         />
       </Card>
+
+      {/* Modal envío masivo WhatsApp */}
+      <Modal title={<Space><WhatsAppOutlined style={{ color: '#25D366' }} /> Recordatorios de pago</Space>}
+        open={masivoOpen} onCancel={() => setMasivoOpen(false)} footer={null} width={620}>
+        <Alert type="info" showIcon style={{ marginBottom: 16 }}
+          message={`${clientesConTel.length} clientes con teléfono de ${filtered.length} en corte`}
+          description={filtered.length - clientesConTel.length > 0 ? `${filtered.length - clientesConTel.length} sin teléfono no aparecen en esta lista.` : undefined} />
+
+        {clientesConTel.length > 0 && (
+          <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>Vista previa del mensaje:</Typography.Text>
+            <Typography.Text style={{ whiteSpace: 'pre-wrap', fontSize: 12, display: 'block', marginTop: 4 }}>
+              {generarMensajeDeuda({ nombre: clientesConTel[0]?.nombreNormalizado, deudaCable: (clientesConTel[0] as any)?.deudaCable, deudaInternet: (clientesConTel[0] as any)?.deudaInternet, cantidadDeuda: clientesConTel[0]?.cantidadDeuda })}
+            </Typography.Text>
+          </Card>
+        )}
+
+        <List size="small" dataSource={clientesConTel} style={{ maxHeight: 380, overflowY: 'auto' }}
+          renderItem={(c: any) => {
+            const sent = enviados.has(c.clientId);
+            return (
+              <List.Item actions={[
+                <a href={generarLinkWhatsApp(c.telefono, generarMensajeDeuda({ nombre: c.nombreNormalizado, deudaCable: c.deudaCable, deudaInternet: c.deudaInternet, cantidadDeuda: c.cantidadDeuda }))}
+                  target="_blank" rel="noreferrer" onClick={() => {
+                    setEnviados((prev) => new Set([...prev, c.clientId]));
+                    clientsApi.logWhatsApp(c.clientId).catch(() => {});
+                  }}>
+                  <Button size="small" icon={<WhatsAppOutlined />}
+                    style={sent ? { color: '#8c8c8c', borderColor: '#d9d9d9' } : { color: '#25D366', borderColor: '#25D366' }}>
+                    {sent ? 'Enviado' : 'Enviar'}
+                  </Button>
+                </a>,
+              ]}>
+                <List.Item.Meta
+                  title={<Space size={4}><span style={sent ? { color: '#8c8c8c' } : {}}>{c.nombreNormalizado}</span>{sent && <Tag color="success" style={{ fontSize: 10 }}>✓</Tag>}</Space>}
+                  description={<Typography.Text type="secondary" style={{ fontSize: 11 }}>📞 {c.telefono} · Deuda: {c.cantidadDeuda} mes{c.cantidadDeuda > 1 ? 'es' : ''}{c.zona ? ` · ${c.zona}` : ''}</Typography.Text>}
+                />
+              </List.Item>
+            );
+          }}
+        />
+
+        {enviados.size > 0 && (
+          <div style={{ marginTop: 12, padding: '8px 0', borderTop: '1px solid #f0f0f0' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>{enviados.size} de {clientesConTel.length} enviados</Typography.Text>
+            <Progress percent={Math.round((enviados.size / clientesConTel.length) * 100)} size="small" strokeColor="#25D366" style={{ marginTop: 4 }} />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
