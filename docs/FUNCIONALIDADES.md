@@ -99,6 +99,7 @@
 - **Morosidad por zona**: tabla con distribucion de deuda por zona geografica.
 - **Tickets de soporte**: abiertos, resueltos hoy, sin resolver +48hs (alerta), tiempo promedio resolucion, tabla de 5 tickets mas antiguos.
 - Ultimas importaciones con status.
+- **Auto-refresh**: se actualiza cada 60 segundos con indicador "Actualizado HH:MM:SS" y boton de sync manual.
 - **Cache 1 minuto**, invalidado al importar.
 
 ## Reportes
@@ -106,7 +107,10 @@
 - **Reporte de cobranza mensual**: clientes con pago, recaudacion por servicio, comparacion con mes anterior, top 20 sin pago.
 - **Export Excel**: clientes con deuda, lista de corte con desglose cable/internet, zona, telefono.
 - **Export PDF**: lista de corte ordenada por direccion (para tecnicos).
-- **Pagina de corte**: stats por servicio (solo cable/solo internet/ambos), filtros por zona y busqueda, tabla con servicios a cortar, deuda total con colores por gravedad, ultimo pago, boton WhatsApp por cliente.
+- **Pagina de corte**: stats por servicio (solo cable/solo internet/ambos), filtros por zona, servicio y busqueda, tabla con servicios a cortar, deuda total con colores por gravedad, ultimo pago, boton WhatsApp por cliente.
+- **Barra de progreso** en importaciones con estadisticas del resultado (procesados, validos, errores, clientes nuevos).
+- **Auto-baja de suscripciones**: el cron nocturno da de baja automaticamente suscripciones individuales con 12+ meses sin pago. El cliente sigue activo si tiene otro servicio al dia. Registra SUBSCRIPTION_AUTO_DEACTIVATED.
+- **Nombres clickeables**: en todas las tablas que muestran clientes (equipos, tickets, comprobantes, documentos, corte, reportes, dashboard), el nombre es un link que abre el drawer del cliente.
 - **Facturas masivas**: ZIP con un PDF por cliente activo.
 
 ## Importacion de datos
@@ -137,6 +141,8 @@
 ## Recordatorio WhatsApp
 
 - Desde la lista de corte, boton "Enviar WhatsApp" por cliente.
+- **Envio masivo**: boton "Recordatorios (N)" abre modal con todos los clientes con telefono, envio individual con tracking de progreso ("12 de 47 enviados").
+- Cada envio se registra en AuditLog (WHATSAPP_SENT).
 - Genera mensaje predeterminado con detalle de deuda (cable/internet, meses, monto estimado).
 - Abre wa.me con el numero del cliente y el texto pre-armado.
 

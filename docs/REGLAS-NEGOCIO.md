@@ -129,3 +129,13 @@ Todas las operaciones manuales se registran:
 - USER_CREATED, USER_UPDATED
 - EQUIPMENT_CREATED, EQUIPMENT_ASSIGNED, EQUIPMENT_RETIRED
 - TICKET_CREATED, TICKET_RESOLVED
+- WHATSAPP_SENT
+- CLIENT_AUTO_DEACTIVATED, SUBSCRIPTION_AUTO_DEACTIVATED
+
+## Auto-baja por inactividad
+
+- **Clientes**: si TODAS las suscripciones de un cliente tienen 12+ meses sin pago, el cliente se da de baja automaticamente.
+- **Suscripciones**: si una suscripcion individual tiene 12+ meses sin pago, se da de baja aunque el cliente siga activo por otro servicio.
+- Ambas reglas se ejecutan en el cron nocturno (5AM Argentina).
+- Se registra `CLIENT_AUTO_DEACTIVATED` o `SUBSCRIPTION_AUTO_DEACTIVATED` en AuditLog.
+- ADMIN puede reactivar manualmente desde el drawer del cliente.

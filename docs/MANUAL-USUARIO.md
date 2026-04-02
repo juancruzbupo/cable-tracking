@@ -26,7 +26,7 @@ El sistema tiene 3 roles con diferentes niveles de acceso:
 
 **Acceso:** Todos los roles
 
-El dashboard es la pantalla principal y muestra el estado general de la empresa en tiempo real. Se actualiza automaticamente cada 1 minuto.
+El dashboard es la pantalla principal y muestra el estado general de la empresa en tiempo real. Se actualiza automaticamente cada 60 segundos. Muestra la hora de la ultima actualizacion ("Actualizado HH:MM:SS") y un boton de sync para recargar manualmente.
 
 **Indicadores principales (fila 1):**
 - **Total clientes**: cantidad total de clientes registrados
@@ -127,10 +127,14 @@ Muestra los clientes que superan el umbral de deuda y requieren corte de servici
 **Filtros:**
 - Busqueda por nombre o codigo
 - Filtro por zona (para que el tecnico filtre su recorrido de trabajo)
+- Filtro por servicio (Solo Cable / Solo Internet / Ambos)
 
 **Tabla:**
 - Numero, cliente, direccion con zona, servicios a cortar (Cable/Internet con meses), deuda total con colores por gravedad, ultimo pago registrado
 - Boton WhatsApp para enviar aviso al cliente antes de cortar
+- **Recordatorios masivos**: boton "Recordatorios (N)" abre un modal con todos los clientes con telefono. Se puede enviar WhatsApp uno por uno con seguimiento visual de cuantos se enviaron ("12 de 47 enviados")
+
+**Nota:** En todas las tablas del sistema que muestran clientes (equipos, tickets, comprobantes, documentos, corte, reportes), el nombre del cliente es un link que abre su detalle directamente.
 
 **Exportaciones:**
 - **PDF**: lista ordenada por direccion para imprimir y llevar al campo
