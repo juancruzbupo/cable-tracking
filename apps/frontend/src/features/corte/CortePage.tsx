@@ -12,6 +12,7 @@ export default function CortePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string | undefined>();
+  const [servicioFilter, setServicioFilter] = useState<string | undefined>();
   const [search, setSearch] = useState('');
   const { hasRole } = useAuth();
   const canExport = hasRole('ADMIN', 'OPERADOR');
@@ -33,6 +34,9 @@ export default function CortePage() {
   const filtered = clients.filter((c) => {
     if (zonaFilter && ((c as any).zona || 'Sin datos') !== zonaFilter) return false;
     if (search && !c.nombreNormalizado.toLowerCase().includes(search.toLowerCase()) && !c.codCli.includes(search)) return false;
+    if (servicioFilter === 'CABLE' && !c.requiereCorteCable) return false;
+    if (servicioFilter === 'INTERNET' && !c.requiereCorteInternet) return false;
+    if (servicioFilter === 'AMBOS' && !(c.requiereCorteCable && c.requiereCorteInternet)) return false;
     return true;
   });
 
@@ -110,8 +114,10 @@ export default function CortePage() {
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input placeholder="Buscar nombre o código..." prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} allowClear style={{ width: 240 }} />
+          <Select placeholder="Servicio" value={servicioFilter} onChange={setServicioFilter} allowClear style={{ width: 150 }}
+            options={[{ value: 'CABLE', label: 'Solo Cable' }, { value: 'INTERNET', label: 'Solo Internet' }, { value: 'AMBOS', label: 'Ambos' }]} />
           {zonas.length > 1 && (
-            <Select placeholder="Filtrar por zona" value={zonaFilter} onChange={setZonaFilter} allowClear style={{ width: 200 }}
+            <Select placeholder="Zona" value={zonaFilter} onChange={setZonaFilter} allowClear style={{ width: 200 }}
               options={zonas.map((z) => ({ value: z, label: z }))} />
           )}
           <Typography.Text type="secondary">{filtered.length} de {clients.length} clientes</Typography.Text>
