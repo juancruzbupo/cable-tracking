@@ -39,8 +39,8 @@ export default function PlansPage() {
       </div>
 
       <Card>
-        <Table dataSource={plans} rowKey="id" loading={loading} pagination={false} columns={[
-          { title: 'Nombre', dataIndex: 'nombre' },
+        <Table dataSource={plans} rowKey="id" loading={loading} pagination={false} scroll={{ x: 700 }} columns={[
+          { title: 'Nombre', dataIndex: 'nombre', ellipsis: true },
           { title: 'Tipo', dataIndex: 'tipo', width: 100, render: (t: string) => <Tag color={t === 'CABLE' ? 'blue' : 'green'}>{t}</Tag> },
           { title: 'Precio', dataIndex: 'precio', width: 120, render: (p: number) => p > 0 ? `$${Number(p).toLocaleString()}` : <Tag color="orange">Sin precio</Tag> },
           { title: 'Suscripciones', width: 120, render: (_: unknown, r: ServicePlan) => r._count?.subscriptions ?? 0 },

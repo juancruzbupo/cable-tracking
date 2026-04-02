@@ -93,11 +93,11 @@ export default function TicketsPage() {
           { key: 'ABIERTO', label: `Abiertos (${stats?.abiertos ?? 0})` },
           { key: 'TODOS', label: 'Todos' },
         ]} />
-        <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} columns={[
-          { title: 'Cliente', render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
+        <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} scroll={{ x: 800 }} columns={[
+          { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
           { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={TIPO_COLORS[t]}>{TIPO_LABELS[t] || t}</Tag> },
           { title: 'Descripción', dataIndex: 'descripcion', ellipsis: true, render: (v: string) => v || '—' },
-          { title: 'Desde hace', dataIndex: 'createdAt', width: 130, render: (d: string) => dayjs(d).fromNow() },
+          { title: 'Desde hace', dataIndex: 'createdAt', width: 120, render: (d: string) => dayjs(d).fromNow() },
           { title: 'Estado', dataIndex: 'estado', width: 100, render: (e: string) => <Tag color={e === 'ABIERTO' ? 'red' : 'green'}>{e}</Tag> },
           { title: '', width: 80, render: (_: any, r: any) => r.estado === 'ABIERTO' && canOperate && (
             <Button size="small" type="link" onClick={() => setResolveId(r.id)}>Resolver</Button>

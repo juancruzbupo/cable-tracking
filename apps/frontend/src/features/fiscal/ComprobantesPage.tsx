@@ -48,12 +48,12 @@ export default function ComprobantesPage() {
       </div>
       <Card>
         <Tag color="orange" style={{ marginBottom: 12 }}>Modo: INTERNO (sin valor fiscal)</Tag>
-        <Table dataSource={data.data} rowKey="id" loading={loading}
+        <Table dataSource={data.data} rowKey="id" loading={loading} scroll={{ x: 750 }}
           pagination={{ total: data.pagination.total, current: data.pagination.page, pageSize: 20, onChange: load }}
           columns={[
-            { title: 'Número', width: 100, render: (_: any, r: any) => `${String(r.puntoVenta).padStart(4, '0')}-${String(r.numero).padStart(8, '0')}` },
+            { title: 'Número', width: 130, render: (_: any, r: any) => `${String(r.puntoVenta).padStart(4, '0')}-${String(r.numero).padStart(8, '0')}` },
             { title: 'Tipo', dataIndex: 'tipo', width: 100, render: (t: string) => <Tag>{t.replace('_', ' ')}</Tag> },
-            { title: 'Cliente', render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
+            { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
             { title: 'Fecha', dataIndex: 'fecha', width: 110, render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
             { title: 'Total', dataIndex: 'total', width: 100, render: (t: number) => `$${Number(t).toLocaleString()}` },
             { title: 'Estado', dataIndex: 'estado', width: 100, render: (e: string) => <Tag color={ESTADO_COLORS[e]}>{e}</Tag> },

@@ -61,13 +61,13 @@ export default function PromotionsPage() {
   const [tab, setTab] = useState('todas');
 
   const columns = [
-    { title: 'Nombre', dataIndex: 'nombre', ellipsis: true },
-    { title: 'Tipo', dataIndex: 'tipo', width: 120, render: (t: PromoType) => <Tag color={TYPE_COLORS[t]}>{t}</Tag> },
+    { title: 'Nombre', dataIndex: 'nombre', width: 200, ellipsis: true },
+    { title: 'Tipo', dataIndex: 'tipo', width: 130, render: (t: PromoType) => <Tag color={TYPE_COLORS[t]}>{t}</Tag> },
     { title: 'Scope', dataIndex: 'scope', width: 90, render: (s: PromoScope) => <Tag>{SCOPE_LABELS[s]}</Tag> },
-    { title: 'Plan', width: 140, render: (_: unknown, r: Promotion) => r.plan?.nombre || '—' },
+    { title: 'Plan', width: 140, ellipsis: true, render: (_: unknown, r: Promotion) => r.plan?.nombre || '—' },
     { title: 'Período', width: 180, render: (_: unknown, r: Promotion) => `${dayjs(r.fechaInicio).format('DD/MM/YY')} → ${dayjs(r.fechaFin).format('DD/MM/YY')}` },
     { title: 'Estado', width: 90, render: (_: unknown, r: Promotion) => getStatus(r) },
-    { title: 'Activa', width: 70, render: (_: unknown, r: Promotion) => hasRole('ADMIN') ? (
+    { title: 'Activa', width: 80, render: (_: unknown, r: Promotion) => hasRole('ADMIN') ? (
       <Switch size="small" checked={r.activa} onChange={(v) => promotionsApi.update(r.id, { activa: v }).then(load)} />
     ) : r.activa ? 'Sí' : 'No' },
   ];

@@ -76,12 +76,12 @@ export default function EquipmentPage() {
       )}
 
       <Card>
-        <Table dataSource={equipment} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} columns={[
-          { title: 'N° Serie', dataIndex: 'numeroSerie', render: (v: string) => v || '—' },
+        <Table dataSource={equipment} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} scroll={{ x: 800 }} columns={[
+          { title: 'N° Serie', dataIndex: 'numeroSerie', width: 140, render: (v: string) => v || '—' },
           { title: 'Tipo', dataIndex: 'tipo', width: 130, render: (t: string) => <Tag>{t}</Tag> },
-          { title: 'Marca/Modelo', render: (_: any, r: any) => `${r.marca || ''} ${r.modelo || ''}`.trim() || '—' },
-          { title: 'Estado', dataIndex: 'estado', width: 140, render: (e: string) => <Tag color={STATUS_COLORS[e]}>{e.replace(/_/g, ' ')}</Tag> },
-          { title: 'Cliente', render: (_: any, r: any) => r.assignments?.[0]?.client?.nombreNormalizado || '—' },
+          { title: 'Marca/Modelo', width: 180, ellipsis: true, render: (_: any, r: any) => `${r.marca || ''} ${r.modelo || ''}`.trim() || '—' },
+          { title: 'Estado', dataIndex: 'estado', width: 130, render: (e: string) => <Tag color={STATUS_COLORS[e]}>{e.replace(/_/g, ' ')}</Tag> },
+          { title: 'Cliente', ellipsis: true, render: (_: any, r: any) => r.assignments?.[0]?.client?.nombreNormalizado || '—' },
           ...(canOperate ? [{
             title: '', width: 100,
             render: (_: any, r: any) => r.estado === 'EN_DEPOSITO' ? (

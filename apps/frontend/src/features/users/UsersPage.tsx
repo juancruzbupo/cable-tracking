@@ -68,9 +68,10 @@ export default function UsersPage() {
           rowKey="id"
           loading={loading}
           pagination={false}
+          scroll={{ x: 650 }}
           columns={[
-            { title: 'Nombre', dataIndex: 'name' },
-            { title: 'Email', dataIndex: 'email' },
+            { title: 'Nombre', dataIndex: 'name', width: 180, ellipsis: true },
+            { title: 'Email', dataIndex: 'email', ellipsis: true },
             {
               title: 'Rol', dataIndex: 'role', width: 160,
               render: (role: UserRole, record: User) => (
