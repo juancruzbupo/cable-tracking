@@ -58,9 +58,10 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
         )}
         {(data as any).telefono && data.cantidadDeuda > 0 && (
           <Button icon={<WhatsAppOutlined />} size="small" style={{ color: '#25D366' }}
-            onClick={() => {
+            onClick={async () => {
               const msg = generarMensajeDeuda({ nombre: nombreNormalizado, deudaCable: data.deudaCable, deudaInternet: data.deudaInternet, cantidadDeuda: data.cantidadDeuda });
               window.open(generarLinkWhatsApp((data as any).telefono, msg), '_blank');
+              try { await clientsApi.logWhatsApp(data.clientId); } catch { /* */ }
             }}>WhatsApp</Button>
         )}
       </Space>

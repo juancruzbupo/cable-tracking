@@ -56,6 +56,7 @@ export default function ClientDetailPage() {
   const [paySubId, setPaySubId] = useState('');
   const [newTicketTipo, setNewTicketTipo] = useState('');
   const [newTicketDesc, setNewTicketDesc] = useState('');
+  const [lastWhatsApp, setLastWhatsApp] = useState<{ sentAt: string; sentBy: string } | null>(null);
   const [equipOptions, setEquipOptions] = useState<any[]>([]);
   const [equipSearching, setEquipSearching] = useState(false);
   const [selectedEquipId, setSelectedEquipId] = useState<string>('');
@@ -79,7 +80,7 @@ export default function ClientDetailPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadClient(); }, [id]);
+  useEffect(() => { loadClient(); if (id) clientsApi.getLastWhatsApp(id).then(setLastWhatsApp).catch(() => {}); }, [id]);
 
   const loadNotes = async () => { if (!id) return; setNotesLoading(true); try { setNotes(await clientsApi.getNotes(id)); } catch { /* */ } finally { setNotesLoading(false); } };
   const loadHistory = async () => { if (!id) return; setHistoryLoading(true); try { setHistory(await clientsApi.getHistory(id)); } catch { /* */ } finally { setHistoryLoading(false); } };
@@ -351,10 +352,14 @@ export default function ClientDetailPage() {
         </div>
         <Space>
           {d.telefono && data.cantidadDeuda > 0 && (
-            <Button icon={<WhatsAppOutlined />} style={{ color: '#25D366' }} onClick={() => {
-              const msg = generarMensajeDeuda({ nombre: nombreNormalizado, deudaCable: data.deudaCable, deudaInternet: data.deudaInternet, cantidadDeuda: data.cantidadDeuda });
-              window.open(generarLinkWhatsApp(d.telefono, msg), '_blank');
-            }}>WhatsApp</Button>
+            <Space direction="vertical" size={0} align="end">
+              <Button icon={<WhatsAppOutlined />} style={{ color: '#25D366' }} onClick={async () => {
+                const msg = generarMensajeDeuda({ nombre: nombreNormalizado, deudaCable: data.deudaCable, deudaInternet: data.deudaInternet, cantidadDeuda: data.cantidadDeuda });
+                window.open(generarLinkWhatsApp(d.telefono, msg), '_blank');
+                try { await clientsApi.logWhatsApp(data.clientId); setLastWhatsApp({ sentAt: new Date().toISOString(), sentBy: 'Vos' }); } catch { /* */ }
+              }}>WhatsApp</Button>
+              {lastWhatsApp && <Typography.Text type="secondary" style={{ fontSize: 10 }}>Último: {dayjs(lastWhatsApp.sentAt).fromNow()} por {lastWhatsApp.sentBy}</Typography.Text>}
+            </Space>
           )}
           {canOperate && estado === 'ACTIVO' && <Button danger icon={<StopOutlined />} onClick={handleDeactivate}>Dar de baja</Button>}
           {isAdmin && estado === 'BAJA' && <Button type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await clientsApi.reactivate(data.clientId); message.success('Reactivado'); loadClient(); }}>Reactivar</Button>}

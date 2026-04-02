@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button, Space, Tooltip, message, Select, Input } from 'antd';
 import { WarningOutlined, ScissorOutlined, FileExcelOutlined, FilePdfOutlined, WhatsAppOutlined, SearchOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
-import { dashboardApi, billingApi, getErrorMessage } from '../../services/api';
+import { dashboardApi, billingApi, clientsApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { generarMensajeDeuda, generarLinkWhatsApp } from '../../shared/utils/whatsapp';
 import type { ClientDebtInfo } from '../../types';
@@ -193,9 +193,10 @@ export default function CortePage() {
               render: (_: unknown, r: any) => r.telefono ? (
                 <Tooltip title="Enviar recordatorio WhatsApp">
                   <Button type="text" size="small" icon={<WhatsAppOutlined style={{ color: '#25D366' }} />}
-                    onClick={() => {
+                    onClick={async () => {
                       const msg = generarMensajeDeuda({ nombre: r.nombreNormalizado, deudaCable: r.deudaCable, deudaInternet: r.deudaInternet, cantidadDeuda: r.cantidadDeuda });
                       window.open(generarLinkWhatsApp(r.telefono, msg), '_blank');
+                      try { await clientsApi.logWhatsApp(r.clientId); } catch { /* */ }
                     }} />
                 </Tooltip>
               ) : null,

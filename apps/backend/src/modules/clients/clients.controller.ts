@@ -193,4 +193,17 @@ export class ClientsController {
   createTicket(@Request() req: any, @Param('id') id: string, @Body() body: { tipo: string; descripcion?: string }) {
     return this.ticketsService.create(req.user.id, id, body.tipo as any, body.descripcion);
   }
+
+  // ── WhatsApp ────────────────────────────────────────────
+  @Get(':id/whatsapp-last')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
+  getLastWhatsApp(@Param('id') id: string) {
+    return this.ops.getLastWhatsApp(id);
+  }
+
+  @Post(':id/whatsapp-log')
+  @Roles('ADMIN', 'OPERADOR')
+  logWhatsApp(@Request() req: any, @Param('id') id: string) {
+    return this.ops.logWhatsApp(req.user.id, id);
+  }
 }

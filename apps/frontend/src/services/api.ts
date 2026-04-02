@@ -169,6 +169,8 @@ export const clientsApi = {
     const { data } = await api.get(`/clients/${clientId}/history`);
     return data;
   },
+  logWhatsApp: async (clientId: string) => { const { data } = await api.post(`/clients/${clientId}/whatsapp-log`); return data; },
+  getLastWhatsApp: async (clientId: string) => { const { data } = await api.get(`/clients/${clientId}/whatsapp-last`); return data; },
   updateComprobanteConfig: async (clientId: string, body: { tipoComprobante: string }) => {
     const { data } = await api.patch(`/clients/${clientId}/comprobante-config`, body);
     return data;

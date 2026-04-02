@@ -260,6 +260,22 @@ export class ClientsOperationsService {
     return this.audit.getByMultipleEntities(entityIds, 50);
   }
 
+  // ── WhatsApp ─────────────────────────────────────────────
+
+  async logWhatsApp(userId: string, clientId: string) {
+    await this.audit.log(userId, 'WHATSAPP_SENT', 'CLIENT', clientId, { timestamp: new Date().toISOString() });
+    return { ok: true };
+  }
+
+  async getLastWhatsApp(clientId: string) {
+    const last = await this.prisma.auditLog.findFirst({
+      where: { entityId: clientId, action: 'WHATSAPP_SENT' },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { name: true } } },
+    });
+    return last ? { sentAt: last.createdAt, sentBy: last.user.name } : null;
+  }
+
   // ── Helpers ──────────────────────────────────────────────
 
   async updateSubscriptionPlan(userId: string, clientId: string, subId: string, planId: string) {
