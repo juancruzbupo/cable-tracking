@@ -98,12 +98,36 @@ export default function DashboardPage() {
         </Row>
       )}
 
-      {/* Fila 3 — Deuda */}
+      {/* Fila 2b — Pérdida estimada */}
+      {mrr && mrr.mrrTeorico > 0 && (
+        <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
+          <Col xs={12} sm={8}>
+            <Card size="small" style={{ borderColor: '#ff4d4f20' }}>
+              <Statistic title="Pérdida por mora" value={mrr.mrrTeorico - mrr.mrrRecaudado} prefix="$" precision={0} valueStyle={{ color: '#ff4d4f' }} />
+              <Typography.Text type="secondary" style={{ fontSize: 10 }}>Lo que no se cobró este mes</Typography.Text>
+            </Card>
+          </Col>
+          <Col xs={12} sm={8}>
+            <Card size="small">
+              <Statistic title="Proyección anual" value={(mrr.mrrRecaudado || 0) * 12} prefix="$" precision={0} valueStyle={{ color: '#1677ff' }} />
+              <Typography.Text type="secondary" style={{ fontSize: 10 }}>Si se mantiene la recaudación actual</Typography.Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ borderColor: '#faad1420' }}>
+              <Statistic title="Pérdida anual estimada" value={(mrr.mrrTeorico - mrr.mrrRecaudado) * 12} prefix="$" precision={0} valueStyle={{ color: '#faad14' }} />
+              <Typography.Text type="secondary" style={{ fontSize: 10 }}>Si no se cobra la mora acumulada</Typography.Text>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {/* Fila 3 — Scoring de clientes */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={12} sm={6}><Card><Statistic title="Al día" value={deuda.alDia} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col xs={12} sm={6}><Card><Statistic title="1 mes deuda" value={deuda.unMes} valueStyle={{ color: '#faad14' }} /></Card></Col>
-        <Col xs={12} sm={6}><Card><Statistic title="2 meses deuda" value={deuda.dosMeses} valueStyle={{ color: '#ff7a45' }} /></Card></Col>
-        <Col xs={12} sm={6}><Card><Statistic title="+2 meses (CORTE)" value={deuda.masDosMeses} prefix={<WarningOutlined />} valueStyle={{ color: '#f5222d' }} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Bueno" value={(deuda as any).scoring?.bueno ?? deuda.alDia} valueStyle={{ color: '#52c41a' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>al día</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Regular" value={(deuda as any).scoring?.regular ?? deuda.unMes} valueStyle={{ color: '#faad14' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>1 mes</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Riesgo" value={(deuda as any).scoring?.riesgo ?? deuda.dosMeses} valueStyle={{ color: '#ff7a45' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>2-3 meses</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Crítico" value={(deuda as any).scoring?.critico ?? deuda.masDosMeses} prefix={<WarningOutlined />} valueStyle={{ color: '#f5222d' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>4+ / corte</span>} /></Card></Col>
       </Row>
 
       {/* Fila 4 — Gráficos */}

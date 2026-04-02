@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Layout, Menu, Tag, Button, Spin, Dropdown } from 'antd';
+import { useState, useEffect } from 'react';
+import { Layout, Menu, Tag, Badge, Button, Spin, Dropdown } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, UploadOutlined, FileTextOutlined,
   ScissorOutlined, UserOutlined, LogoutOutlined, DollarOutlined, BarChartOutlined,
   ThunderboltOutlined, SettingOutlined, ToolOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { ticketsApi } from './services/api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import DashboardPage from './features/dashboard/DashboardPage';
@@ -37,13 +38,22 @@ function AppLayout() {
   const location = useLocation();
   const { user, logout, hasRole } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [ticketsAbiertos, setTicketsAbiertos] = useState(0);
+
+  useEffect(() => {
+    if (!hasRole('ADMIN', 'OPERADOR')) return;
+    const load = () => ticketsApi.getStats().then((s: any) => setTicketsAbiertos(s.abiertos || 0)).catch(() => {});
+    load();
+    const interval = setInterval(load, 120_000); // cada 2 min
+    return () => clearInterval(interval);
+  }, []);
 
   const menuItems = [
     // Operación diaria
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/clients', icon: <TeamOutlined />, label: 'Clientes' },
     { key: '/corte', icon: <ScissorOutlined />, label: 'Para Corte' },
-    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: 'Tickets' }] : []),
+    ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/tickets', icon: <ExclamationCircleOutlined />, label: <Badge count={ticketsAbiertos} size="small" offset={[8, 0]}>Tickets</Badge> }] : []),
     ...(hasRole('ADMIN', 'OPERADOR') ? [{ key: '/equipment', icon: <ToolOutlined />, label: 'Equipos' }] : []),
     // Consultas
     { key: '/documents', icon: <FileTextOutlined />, label: 'Documentos' },

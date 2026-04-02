@@ -4,7 +4,7 @@ import {
   message, Drawer, Spin,
 } from 'antd';
 import {
-  SearchOutlined, WarningOutlined, DownloadOutlined, EyeOutlined, PlusOutlined,
+  SearchOutlined, DownloadOutlined, EyeOutlined, PlusOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
@@ -45,16 +45,6 @@ export default function ClientsPage() {
     }
   };
 
-  const debtTag = (debt: number, corte: boolean) => {
-    if (debt === 0) return <Tag color="green">Al día</Tag>;
-    if (debt === 1) return <Tag color="orange">1 mes</Tag>;
-    if (debt === 2) return <Tag color="volcano">2 meses</Tag>;
-    return (
-      <Tag color="red" icon={<WarningOutlined />}>
-        {debt} meses{corte ? ' · CORTE' : ''}
-      </Tag>
-    );
-  };
 
   return (
     <div>
@@ -194,12 +184,23 @@ export default function ClientsPage() {
               ),
             },
             {
+              title: 'Estado',
+              width: 100,
+              render: (_: unknown, r: any) => {
+                const s = r.scoring;
+                if (!s) return '—';
+                const cfg: Record<string, { color: string; label: string }> = { BUENO: { color: 'green', label: 'Bueno' }, REGULAR: { color: 'orange', label: 'Regular' }, RIESGO: { color: 'volcano', label: 'Riesgo' }, CRITICO: { color: 'red', label: 'Crítico' } };
+                const c = cfg[s] || cfg.BUENO;
+                return <Tag color={c.color}>{c.label}</Tag>;
+              },
+            },
+            {
               title: 'Deuda',
-              width: 110,
+              width: 90,
               render: (_: unknown, r: ClientWithDebt) =>
-                r.debtInfo
-                  ? debtTag(r.debtInfo.cantidadDeuda, r.debtInfo.requiereCorte)
-                  : '—',
+                r.debtInfo && r.debtInfo.cantidadDeuda > 0
+                  ? <span style={{ color: '#f5222d', fontWeight: 500 }}>{r.debtInfo.cantidadDeuda}m</span>
+                  : <span style={{ color: '#52c41a' }}>0</span>,
             },
             {
               title: 'Adeudados',

@@ -156,4 +156,18 @@ export class DebtService {
       deudaInternet: internetDebt?.cantidadDeuda ?? 0,
     };
   }
+
+  /**
+   * Scoring de cliente basado en historial de pago.
+   * BUENO: al día o 0 deuda
+   * REGULAR: 1 mes de deuda
+   * RIESGO: 2-3 meses (cerca del corte)
+   * CRITICO: 4+ meses o requiere corte
+   */
+  static calcularScoring(cantidadDeuda: number, requiereCorte: boolean): 'BUENO' | 'REGULAR' | 'RIESGO' | 'CRITICO' {
+    if (requiereCorte || cantidadDeuda >= 4) return 'CRITICO';
+    if (cantidadDeuda >= 2) return 'RIESGO';
+    if (cantidadDeuda === 1) return 'REGULAR';
+    return 'BUENO';
+  }
 }

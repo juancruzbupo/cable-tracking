@@ -88,14 +88,10 @@ export class ClientsService {
         this.prisma.client.count({ where }),
       ]);
 
-      const data = clients.map((c) => ({
-        ...c,
-        ticketsAbiertos: c._count?.tickets ?? 0,
-        debtInfo: this.calculateDebt(
-          c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle,
-          c.subscriptions,
-        ),
-      }));
+      const data = clients.map((c) => {
+        const debtInfo = this.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions);
+        return { ...c, ticketsAbiertos: c._count?.tickets ?? 0, debtInfo, scoring: DebtService.calcularScoring(debtInfo.cantidadDeuda, debtInfo.requiereCorte) };
+      });
 
       return {
         data,
@@ -109,14 +105,10 @@ export class ClientsService {
       include: { ...SUBS_INCLUDE, _count: { select: { tickets: { where: { estado: 'ABIERTO' } } } } },
     });
 
-    const withDebt = allClients.map((c) => ({
-      ...c,
-      ticketsAbiertos: c._count?.tickets ?? 0,
-      debtInfo: this.calculateDebt(
-        c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle,
-        c.subscriptions,
-      ),
-    }));
+    const withDebt = allClients.map((c) => {
+      const debtInfo = this.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions);
+      return { ...c, ticketsAbiertos: c._count?.tickets ?? 0, debtInfo, scoring: DebtService.calcularScoring(debtInfo.cantidadDeuda, debtInfo.requiereCorte) };
+    });
 
     // Filtrar por debtStatus
     const filtered = withDebt.filter((c) => {
@@ -247,6 +239,7 @@ export class ClientsService {
     }
 
     const total = clients.length;
+    const scoring = { bueno: alDia, regular: unMes, riesgo: dosMeses, critico: masDosMeses };
 
     return {
       total,
@@ -260,6 +253,7 @@ export class ClientsService {
           ? ((unMes + dosMeses + masDosMeses) / total) * 100
           : 0,
       clientesParaCorte,
+      scoring,
     };
   }
 }

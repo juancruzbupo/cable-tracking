@@ -120,7 +120,30 @@ Estado actual: ~1100 clientes. Estos items se implementan cuando el negocio crez
 **Qué:** App React Native o PWA para que el técnico vea la lista de corte por zona, marque cortes realizados, registre tickets en campo, y escanee equipos por QR/serie.
 **Esfuerzo:** 3-4 semanas. Reutiliza la API REST existente.
 
-### 4.4 Integración con pasarela de pagos
+### 4.4 API-first (eliminar dependencia de Excel)
+**Cuándo:** Cuando se quiera integrar con otros sistemas (contabilidad, routers, apps).
+**Qué:** Endpoints públicos documentados para carga de clientes y pagos sin Excel. Webhooks para notificar eventos (nuevo pago, cliente en corte).
+**Esfuerzo:** 2 semanas. Swagger ya existe, agregar endpoints de carga + webhooks.
+
+### 4.5 WebSockets / Notificaciones en tiempo real
+**Cuándo:** Cuando haya múltiples operadores trabajando simultáneamente.
+**Qué:** Notificaciones push cuando un cliente entra en corte, ticket nuevo, pago registrado. Sin necesidad de recargar.
+**Requiere:** Socket.io o SSE + NestJS Gateway.
+**Esfuerzo:** 1-2 semanas.
+
+### 4.6 Integración con routers (corte automático real)
+**Cuándo:** Cuando la empresa quiera automatizar cortes sin intervención manual.
+**Qué:** API que se conecta al router/OLT de la empresa y corta/reactiva el servicio automáticamente cuando el sistema lo marca.
+**Requiere:** Depende del hardware del ISP (MikroTik, Huawei, etc). Cada marca tiene su API.
+**Esfuerzo:** Variable. 2-4 semanas por marca de router.
+
+### 4.7 Scoring avanzado con machine learning
+**Cuándo:** Cuando haya 2+ años de datos históricos de pagos.
+**Qué:** Modelo predictivo que identifica qué clientes van a dejar de pagar antes de que suceda, basado en patrones de pago históricos.
+**Requiere:** Python + scikit-learn o similar. Datos de PaymentPeriod + Client como features.
+**Esfuerzo:** 2-3 semanas (modelo + integración).
+
+### 4.8 Integración con pasarela de pagos
 **Cuándo:** Clientes piden pagar online, o se quiere automatizar la cobranza.
 **Qué:** Link de pago por Mercado Pago / Stripe que al confirmarse registra automáticamente el PaymentPeriod en el sistema.
 **Requiere:** Webhook de la pasarela + matching con cliente por referencia de pago.
