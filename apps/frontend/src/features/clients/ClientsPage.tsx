@@ -126,7 +126,9 @@ export default function ClientsPage() {
           dataSource={clients}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 1000 }}
+          size="small"
+          scroll={{ x: 1100 }}
+          tableLayout="fixed"
           rowClassName={(r) => (r.debtInfo?.requiereCorte ? 'row-corte' : '')}
           pagination={{
             total: pagination.total,
@@ -138,13 +140,14 @@ export default function ClientsPage() {
           }}
           columns={[
             {
-              title: 'Código',
+              title: 'Cód.',
               dataIndex: 'codCli',
-              width: 80,
+              width: 65,
             },
             {
               title: 'Nombre',
               dataIndex: 'nombreNormalizado',
+              width: 200,
               ellipsis: true,
               render: (name: string, r: ClientWithDebt) => (
                 <span>
@@ -168,19 +171,20 @@ export default function ClientsPage() {
             {
               title: 'Alta',
               dataIndex: 'fechaAlta',
-              width: 110,
+              width: 95,
               render: (d: string | null) =>
                 d ? new Date(d).toLocaleDateString('es-AR') : '—',
             },
             {
               title: 'Calle',
               dataIndex: 'calle',
+              width: 180,
               ellipsis: true,
               render: (v: string | null) => v || '—',
             },
             {
               title: 'Servicios',
-              width: 130,
+              width: 120,
               render: (_: unknown, r: ClientWithDebt) => (
                 <Space size={2}>
                   {r.debtInfo?.subscriptions?.some((s) => s.tipo === 'CABLE') && <Tag color="blue">Cable</Tag>}
@@ -190,15 +194,15 @@ export default function ClientsPage() {
             },
             {
               title: 'Deuda',
-              width: 140,
+              width: 110,
               render: (_: unknown, r: ClientWithDebt) =>
                 r.debtInfo
                   ? debtTag(r.debtInfo.cantidadDeuda, r.debtInfo.requiereCorte)
                   : '—',
             },
             {
-              title: 'Meses adeudados',
-              width: 200,
+              title: 'Adeudados',
+              width: 160,
               render: (_: unknown, r: ClientWithDebt) => {
                 const m = r.debtInfo?.mesesAdeudados || [];
                 if (m.length === 0) return '—';
