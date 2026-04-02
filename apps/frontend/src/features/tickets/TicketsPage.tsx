@@ -4,6 +4,7 @@ import { ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/es';
+import { useNavigate } from 'react-router-dom';
 import { ticketsApi, clientsApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,6 +17,7 @@ const TIPO_LABELS: Record<string, string> = { SIN_SENIAL: 'Sin señal', LENTITUD
 export default function TicketsPage() {
   const { hasRole } = useAuth();
   const canOperate = hasRole('ADMIN', 'OPERADOR');
+  const navigate = useNavigate();
 
   const [data, setData] = useState<any>({ data: [], pagination: { total: 0 } });
   const [stats, setStats] = useState<any>(null);
@@ -102,7 +104,10 @@ export default function TicketsPage() {
             options={Object.entries(TIPO_LABELS).map(([k, v]) => ({ value: k, label: v }))} />
         </div>
         <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} scroll={{ x: 800 }} columns={[
-          { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
+          { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => {
+            if (!r.client) return '—';
+            return <a onClick={() => navigate(`/clients?clientId=${r.client.id}`)} style={{ cursor: 'pointer' }}>{r.client.nombreNormalizado}</a>;
+          }},
           { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={TIPO_COLORS[t]}>{TIPO_LABELS[t] || t}</Tag> },
           { title: 'Descripción', dataIndex: 'descripcion', ellipsis: true, render: (v: string) => v || '—' },
           { title: 'Desde hace', dataIndex: 'createdAt', width: 120, render: (d: string) => dayjs(d).fromNow() },

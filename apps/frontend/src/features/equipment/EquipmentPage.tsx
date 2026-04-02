@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Tag, Typography, Button, Modal, Form, Input, Select, Row, Col, Statistic, Spin, Space, message } from 'antd';
 import { PlusOutlined, ToolOutlined, LinkOutlined, SearchOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { equipmentApi, clientsApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,6 +10,7 @@ const TIPO_OPTIONS = ['MODEM', 'DECODIFICADOR', 'ROUTER', 'MATERIAL'];
 
 export default function EquipmentPage() {
   const { hasRole } = useAuth();
+  const navigate = useNavigate();
   const canOperate = hasRole('ADMIN', 'OPERADOR');
   const isAdmin = hasRole('ADMIN');
 
@@ -98,7 +100,11 @@ export default function EquipmentPage() {
           { title: 'Tipo', dataIndex: 'tipo', width: 130, render: (t: string) => <Tag>{t}</Tag> },
           { title: 'Marca/Modelo', width: 180, ellipsis: true, render: (_: any, r: any) => `${r.marca || ''} ${r.modelo || ''}`.trim() || '—' },
           { title: 'Estado', dataIndex: 'estado', width: 130, render: (e: string) => <Tag color={STATUS_COLORS[e]}>{e.replace(/_/g, ' ')}</Tag> },
-          { title: 'Cliente', ellipsis: true, render: (_: any, r: any) => r.assignments?.[0]?.client?.nombreNormalizado || '—' },
+          { title: 'Cliente', ellipsis: true, render: (_: any, r: any) => {
+            const client = r.assignments?.[0]?.client;
+            if (!client) return '—';
+            return <a onClick={() => navigate(`/clients?clientId=${client.id}`)} style={{ cursor: 'pointer' }}>{client.nombreNormalizado}</a>;
+          }},
           ...(canOperate ? [{
             title: '', width: 100,
             render: (_: any, r: any) => r.estado === 'EN_DEPOSITO' ? (
