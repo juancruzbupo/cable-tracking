@@ -21,7 +21,7 @@ cable-tracking/
 │   ├── backend/
 │   │   ├── prisma/
 │   │   │   ├── schema.prisma          → 16 modelos, 14 enums
-│   │   │   └── migrations/            → 16 migraciones
+│   │   │   └── migrations/            → 17 migraciones
 │   │   ├── scripts/                   → seed-admin, seed-plans, migrate-subscriptions
 │   │   └── src/
 │   │       ├── main.ts                → Bootstrap (CORS, Swagger, ValidationPipe, GlobalExceptionFilter)
@@ -86,10 +86,19 @@ AppModule
 `IFiscalProvider` interface con `MockFiscalProvider` actual. Permite cambiar a AFIP real sin tocar el core.
 
 ### Guards globales (APP_GUARD)
-`JwtAuthGuard` + `RolesGuard` registrados globalmente. `@Public()` excluye endpoints.
+`ThrottlerGuard` (100 req/min por IP) + `JwtAuthGuard` + `RolesGuard` registrados globalmente. `@Public()` excluye endpoints de auth.
+
+### Rate limiting
+`@nestjs/throttler` con limite global de 100 requests por minuto por IP.
+
+### HTTP timeouts
+Server timeout 60s, keepAlive 65s, headers 66s configurados en main.ts.
+
+### Connection pool
+`connection_limit=20` en DATABASE_URL para Prisma (default era 10).
 
 ### Cache en memoria
-Dashboard cachea metricas y lista de corte por 1 minuto. Se invalida al importar.
+Dashboard cachea todas las metricas (metrics, corte, tendencia, mrr, riesgo, crecimiento, zonas, tickets) por 1 minuto. Se invalida al importar.
 
 ### Batch inserts
 Importacion usa `createMany` en chunks de 500 + `skipDuplicates` para periodos.

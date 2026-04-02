@@ -180,3 +180,5 @@ Ver `docs/` para documentacion detallada:
 - `FUNCIONALIDADES.md` — Features completas del sistema
 - `ARQUITECTURA.md` — Modulos, dependencias y patrones
 - `FISCAL_PROVIDER.md` — Guia para implementar proveedor fiscal real
+- `BACKLOG-ESCALABILIDAD.md` — Roadmap de escalabilidad (3K/5K/10K/50K clientes)
+- `MANUAL-USUARIO.md` — Manual completo para el usuario final
