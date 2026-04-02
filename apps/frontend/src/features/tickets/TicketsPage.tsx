@@ -103,8 +103,8 @@ export default function TicketsPage() {
           <Select placeholder="Tipo de problema" value={tipoFilter} onChange={setTipoFilter} allowClear style={{ width: 200, marginBottom: 8 }}
             options={Object.entries(TIPO_LABELS).map(([k, v]) => ({ value: k, label: v }))} />
         </div>
-        <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} scroll={{ x: 800 }} columns={[
-          { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => {
+        <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} columns={[
+          { title: 'Cliente', width: 180, ellipsis: true, render: (_: any, r: any) => {
             if (!r.client) return '—';
             return <a href={`/clients?clientId=${r.client.id}`} onClick={(e) => { e.preventDefault(); navigate(`/clients?clientId=${r.client.id}`); }}>{r.client.nombreNormalizado}</a>;
           }},
