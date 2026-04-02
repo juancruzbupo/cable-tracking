@@ -63,6 +63,7 @@ export class TicketsService {
     return this.prisma.ticket.findMany({
       where: { clientId },
       orderBy: [{ estado: 'asc' }, { createdAt: 'desc' }],
+      take: 50,
     });
   }
 

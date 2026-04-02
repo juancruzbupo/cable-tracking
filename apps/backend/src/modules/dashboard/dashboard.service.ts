@@ -140,31 +140,30 @@ export class DashboardService {
     if (cached) return cached;
 
     const now = dayjs();
-    const meses: any[] = [];
+    const monthsData = Array.from({ length: 12 }, (_, i) => {
+      const m = now.subtract(11 - i, 'month');
+      return { m, year: m.year(), month: m.month() + 1 };
+    });
 
-    for (let i = 11; i >= 0; i--) {
-      const m = now.subtract(i, 'month');
-      const year = m.year();
-      const month = m.month() + 1;
+    // Ejecutar las 24 queries en paralelo (2 por mes × 12 meses)
+    const results = await Promise.all(
+      monthsData.flatMap(({ m, year, month }) => [
+        this.prisma.subscription.count({ where: { estado: ClientStatus.ACTIVO, fechaAlta: { lte: m.endOf('month').toDate() } } }),
+        this.prisma.paymentPeriod.groupBy({ by: ['subscriptionId'], where: { year, month, subscriptionId: { not: null } } }),
+      ]),
+    );
 
-      const [totalActivos, pagados] = await Promise.all([
-        this.prisma.subscription.count({
-          where: { estado: ClientStatus.ACTIVO, fechaAlta: { lte: m.endOf('month').toDate() } },
-        }),
-        this.prisma.paymentPeriod.groupBy({
-          by: ['subscriptionId'],
-          where: { year, month, subscriptionId: { not: null } },
-        }),
-      ]);
-
-      meses.push({
+    const meses = monthsData.map(({ m, month, year }, i) => {
+      const totalActivos = results[i * 2] as number;
+      const pagados = (results[i * 2 + 1] as any[]).length;
+      return {
         periodo: m.format('YYYY-MM'),
         label: `${MONTH_LABELS[month]} ${year}`,
         totalActivos,
-        pagados: pagados.length,
-        porcentaje: totalActivos > 0 ? Math.round((pagados.length / totalActivos) * 1000) / 10 : 0,
-      });
-    }
+        pagados,
+        porcentaje: totalActivos > 0 ? Math.round((pagados / totalActivos) * 1000) / 10 : 0,
+      };
+    });
 
     const result = { meses };
     this.setCache('tendencia', result);
@@ -222,6 +221,8 @@ export class DashboardService {
   // ── New: Riesgo ──────────────────────────────────────────
 
   async getRiesgo() {
+    const cached = this.getCached('riesgo');
+    if (cached) return cached;
     const umbralCorte = await this.getUmbralCorte();
 
     const subs = await this.prisma.subscription.findMany({
@@ -248,12 +249,16 @@ export class DashboardService {
       .sort((a, b) => (a.zona || 'zzz').localeCompare(b.zona || 'zzz') || a.nombre.localeCompare(b.nombre))
       .slice(0, 50);
 
-    return { umbralCorte, total: clientMap.size, clientes };
+    const result = { umbralCorte, total: clientMap.size, clientes };
+    this.setCache('riesgo', result);
+    return result;
   }
 
   // ── New: Crecimiento ─────────────────────────────────────
 
   async getCrecimiento() {
+    const cached = this.getCached('crecimiento');
+    if (cached) return cached;
     const now = dayjs();
     const startThisMonth = now.startOf('month').toDate();
     const startLastMonth = now.subtract(1, 'month').startOf('month').toDate();
@@ -288,7 +293,7 @@ export class DashboardService {
 
     const totalConSub = soloCable + soloInternet + ambos;
 
-    return {
+    const result = {
       mesActual: {
         periodo: `${MONTH_LABELS[now.month() + 1]} ${now.year()}`,
         altas: altasThisMonth, bajas: bajasThisMonth, neto: altasThisMonth - bajasThisMonth, totalActivos,
@@ -303,11 +308,15 @@ export class DashboardService {
         oportunidad: soloCable,
       },
     };
+    this.setCache('crecimiento', result);
+    return result;
   }
 
   // ── New: Zonas ───────────────────────────────────────────
 
   async getZonas() {
+    const cached = this.getCached('zonas');
+    if (cached) return cached;
     const umbralCorte = await this.getUmbralCorte();
 
     const clients = await this.prisma.client.findMany({
@@ -340,7 +349,9 @@ export class DashboardService {
       }))
       .sort((a, b) => a.zona.localeCompare(b.zona));
 
-    return { zonas };
+    const result = { zonas };
+    this.setCache('zonas', result);
+    return result;
   }
 
   // ── New: Tickets ─────────────────────────────────────────

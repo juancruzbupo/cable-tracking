@@ -238,6 +238,7 @@ export class ClientsOperationsService {
       where: { clientId },
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 

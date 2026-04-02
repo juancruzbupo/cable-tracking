@@ -176,6 +176,7 @@ model Subscription {
   @@index([clientId])
   @@index([planId])
   @@index([clientId, estado])
+  @@index([estado])
   @@map("subscriptions")
 }
 
@@ -300,6 +301,7 @@ model Promotion {
 
   @@index([planId])
   @@index([fechaInicio, fechaFin])
+  @@index([activa])
   @@map("promotions")
 }
 

@@ -39,7 +39,7 @@ export class SchedulerService {
     });
 
     let conCorte = 0;
-    const BATCH = 100;
+    const BATCH = 500;
 
     for (let i = 0; i < subs.length; i += BATCH) {
       const batch = subs.slice(i, i + BATCH);

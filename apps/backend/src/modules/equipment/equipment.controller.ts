@@ -11,8 +11,8 @@ export class EquipmentController {
 
   @Get()
   @Roles('ADMIN', 'OPERADOR')
-  findAll(@Query('tipo') tipo?: string, @Query('estado') estado?: EquipmentStatus, @Query('search') search?: string) {
-    return this.equipmentService.findAll({ tipo, estado, search });
+  findAll(@Query('tipo') tipo?: string, @Query('estado') estado?: EquipmentStatus, @Query('search') search?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
+    return this.equipmentService.findAll({ tipo, estado, search, page: Number(page) || 1, limit: Number(limit) || 50 });
   }
 
   @Get('stats')

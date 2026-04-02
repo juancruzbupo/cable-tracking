@@ -7,7 +7,7 @@ import { AuditService } from '../../common/audit/audit.service';
 export class EquipmentService {
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
 
-  async findAll(filters: { tipo?: string; estado?: EquipmentStatus; search?: string }) {
+  async findAll(filters: { tipo?: string; estado?: EquipmentStatus; search?: string; page?: number; limit?: number }) {
     const where: any = {};
     if (filters.tipo) where.tipo = filters.tipo;
     if (filters.estado) where.estado = filters.estado;
@@ -18,17 +18,25 @@ export class EquipmentService {
         { numeroSerie: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
-    return this.prisma.equipment.findMany({
-      where,
-      include: {
-        assignments: {
-          where: { fechaRetiro: null },
-          include: { client: { select: { id: true, nombreNormalizado: true } } },
-          take: 1,
+    const page = filters.page || 1;
+    const limit = Math.min(filters.limit || 50, 100);
+    const [data, total] = await Promise.all([
+      this.prisma.equipment.findMany({
+        where,
+        include: {
+          assignments: {
+            where: { fechaRetiro: null },
+            include: { client: { select: { id: true, nombreNormalizado: true } } },
+            take: 1,
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.equipment.count({ where }),
+    ]);
+    return { data, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async getStats() {
