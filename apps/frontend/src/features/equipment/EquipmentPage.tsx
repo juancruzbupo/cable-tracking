@@ -1,17 +1,28 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Tag, Typography, Button, Modal, Form, Input, Select, Row, Col, Statistic, message } from 'antd';
-import { PlusOutlined, ToolOutlined } from '@ant-design/icons';
-import { equipmentApi, getErrorMessage } from '../../services/api';
+import { Card, Table, Tag, Typography, Button, Modal, Form, Input, Select, Row, Col, Statistic, Spin, message } from 'antd';
+import { PlusOutlined, ToolOutlined, LinkOutlined } from '@ant-design/icons';
+import { equipmentApi, clientsApi, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUS_COLORS: Record<string, string> = { EN_DEPOSITO: 'green', ASIGNADO: 'blue', EN_REPARACION: 'orange', DE_BAJA: 'default' };
 const TIPO_OPTIONS = ['MODEM', 'DECODIFICADOR', 'ROUTER', 'MATERIAL'];
 
 export default function EquipmentPage() {
+  const { hasRole } = useAuth();
+  const canOperate = hasRole('ADMIN', 'OPERADOR');
+  const isAdmin = hasRole('ADMIN');
+
   const [equipment, setEquipment] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
+
+  // Assign modal
+  const [assignModal, setAssignModal] = useState<{ equipId: string; equipLabel: string } | null>(null);
+  const [clientOptions, setClientOptions] = useState<any[]>([]);
+  const [clientSearching, setClientSearching] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState('');
 
   const load = useCallback(async () => {
     try { setLoading(true); const [eq, st] = await Promise.all([equipmentApi.getAll(), equipmentApi.getStats()]); setEquipment(eq.data || eq); setStats(st); }
@@ -26,11 +37,33 @@ export default function EquipmentPage() {
     catch (err) { message.error(getErrorMessage(err)); }
   };
 
+  const searchClients = async (search: string) => {
+    if (!search || search.length < 2) return;
+    setClientSearching(true);
+    try {
+      const res = await clientsApi.getAll({ search, estado: 'ACTIVO' as any, limit: 20 });
+      setClientOptions(res.data || []);
+    } catch { /* */ }
+    finally { setClientSearching(false); }
+  };
+
+  const handleAssign = async () => {
+    if (!assignModal || !selectedClientId) return;
+    try {
+      await equipmentApi.assign(selectedClientId, assignModal.equipId);
+      message.success('Equipo asignado');
+      setAssignModal(null);
+      setSelectedClientId('');
+      setClientOptions([]);
+      load();
+    } catch (err) { message.error(getErrorMessage(err)); }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}><ToolOutlined /> Equipos</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>Nuevo equipo</Button>
+        {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>Nuevo equipo</Button>}
       </div>
 
       {stats && (
@@ -47,11 +80,20 @@ export default function EquipmentPage() {
           { title: 'N° Serie', dataIndex: 'numeroSerie', render: (v: string) => v || '—' },
           { title: 'Tipo', dataIndex: 'tipo', width: 130, render: (t: string) => <Tag>{t}</Tag> },
           { title: 'Marca/Modelo', render: (_: any, r: any) => `${r.marca || ''} ${r.modelo || ''}`.trim() || '—' },
-          { title: 'Estado', dataIndex: 'estado', width: 130, render: (e: string) => <Tag color={STATUS_COLORS[e]}>{e.replace('_', ' ')}</Tag> },
+          { title: 'Estado', dataIndex: 'estado', width: 140, render: (e: string) => <Tag color={STATUS_COLORS[e]}>{e.replace(/_/g, ' ')}</Tag> },
           { title: 'Cliente', render: (_: any, r: any) => r.assignments?.[0]?.client?.nombreNormalizado || '—' },
+          ...(canOperate ? [{
+            title: '', width: 100,
+            render: (_: any, r: any) => r.estado === 'EN_DEPOSITO' ? (
+              <Button size="small" type="link" icon={<LinkOutlined />} onClick={() => {
+                setAssignModal({ equipId: r.id, equipLabel: `${r.tipo} ${r.marca || ''} ${r.numeroSerie || ''}`.trim() });
+              }}>Asignar</Button>
+            ) : null,
+          }] : []),
         ]} />
       </Card>
 
+      {/* Modal crear equipo */}
       <Modal title="Nuevo equipo" open={modalOpen} onCancel={() => { setModalOpen(false); form.resetFields(); }} footer={null} destroyOnClose>
         <Form form={form} onFinish={handleCreate} layout="vertical">
           <Form.Item name="tipo" label="Tipo" rules={[{ required: true }]}>
@@ -62,6 +104,22 @@ export default function EquipmentPage() {
           <Form.Item name="numeroSerie" label="Número de serie"><Input /></Form.Item>
           <Form.Item><Button type="primary" htmlType="submit">Crear</Button></Form.Item>
         </Form>
+      </Modal>
+
+      {/* Modal asignar equipo a cliente */}
+      <Modal title={`Asignar: ${assignModal?.equipLabel || ''}`} open={!!assignModal} onOk={handleAssign} onCancel={() => { setAssignModal(null); setSelectedClientId(''); setClientOptions([]); }}
+        okText="Asignar" cancelText="Cancelar" okButtonProps={{ disabled: !selectedClientId }}>
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>Buscá el cliente al que querés asignar este equipo:</Typography.Text>
+        <Select showSearch placeholder="Buscar cliente por nombre..." filterOption={false}
+          onSearch={searchClients} loading={clientSearching} style={{ width: '100%' }}
+          value={selectedClientId || undefined} onChange={setSelectedClientId}
+          notFoundContent={clientSearching ? <Spin size="small" /> : 'Escribí para buscar'}>
+          {clientOptions.map((c: any) => (
+            <Select.Option key={c.id} value={c.id}>
+              {c.nombreNormalizado}{c.calle && <span style={{ color: '#8c8c8c', fontSize: 12 }}> — {c.calle}</span>}
+            </Select.Option>
+          ))}
+        </Select>
       </Modal>
     </div>
   );

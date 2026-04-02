@@ -56,6 +56,9 @@ export default function ClientDetailPage() {
   const [paySubId, setPaySubId] = useState('');
   const [newTicketTipo, setNewTicketTipo] = useState('');
   const [newTicketDesc, setNewTicketDesc] = useState('');
+  const [equipOptions, setEquipOptions] = useState<any[]>([]);
+  const [equipSearching, setEquipSearching] = useState(false);
+  const [selectedEquipId, setSelectedEquipId] = useState<string>('');
 
   // Loading states
   const [notesLoading, setNotesLoading] = useState(false);
@@ -167,10 +170,48 @@ export default function ClientDetailPage() {
     </Card>
   );
 
+  const searchEquipment = async (search: string) => {
+    if (!search || search.length < 2) return;
+    setEquipSearching(true);
+    try {
+      const res = await equipmentApi.getAll({ estado: 'EN_DEPOSITO', search });
+      setEquipOptions((res.data || res).slice(0, 20));
+    } catch { /* */ }
+    finally { setEquipSearching(false); }
+  };
+
+  const handleAssignEquip = async () => {
+    if (!selectedEquipId) return;
+    try {
+      await equipmentApi.assign(data.clientId, selectedEquipId);
+      message.success('Equipo asignado');
+      setSelectedEquipId('');
+      setEquipOptions([]);
+      loadEquipment();
+    } catch (err) { message.error(getErrorMessage(err)); }
+  };
+
   const tabEquipos = (
     <Card>
       <Spin spinning={equipLoading}>
-        {canOperate && estado === 'ACTIVO' && <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>Para asignar equipos usá la página de Equipos.</Typography.Text>}
+        {canOperate && estado === 'ACTIVO' && (
+          <div style={{ marginBottom: 16 }}>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>Asignar equipo disponible</Typography.Text>
+            <Space.Compact style={{ width: '100%' }}>
+              <Select showSearch placeholder="Buscar por serie, marca o modelo..." filterOption={false}
+                onSearch={searchEquipment} loading={equipSearching} style={{ flex: 1 }}
+                value={selectedEquipId || undefined} onChange={setSelectedEquipId}
+                notFoundContent={equipSearching ? <Spin size="small" /> : 'Escribí para buscar equipos en depósito'}>
+                {equipOptions.map((eq: any) => (
+                  <Select.Option key={eq.id} value={eq.id}>
+                    {eq.tipo} {eq.marca && `— ${eq.marca}`} {eq.modelo && eq.modelo} {eq.numeroSerie && <Typography.Text code>{eq.numeroSerie}</Typography.Text>}
+                  </Select.Option>
+                ))}
+              </Select>
+              <Button type="primary" disabled={!selectedEquipId} onClick={handleAssignEquip}>Asignar</Button>
+            </Space.Compact>
+          </div>
+        )}
         {clientEquipment.length > 0 ? (
           <List dataSource={clientEquipment} renderItem={(eq: any) => (
             <List.Item actions={canOperate && !eq.fechaRetiro ? [
