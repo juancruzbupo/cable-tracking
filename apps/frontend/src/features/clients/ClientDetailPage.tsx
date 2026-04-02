@@ -14,7 +14,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/es';
-import { clientsApi, promotionsApi, equipmentApi, ticketsApi, getErrorMessage } from '../../services/api';
+import { clientsApi, promotionsApi, equipmentApi, ticketsApi, fiscalApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { generarMensajeDeuda, generarLinkWhatsApp } from '../../shared/utils/whatsapp';
 import type { ClientDetailResult, ClientNote, AuditLogEntry } from '../../types';
@@ -57,6 +57,9 @@ export default function ClientDetailPage() {
   const [newTicketTipo, setNewTicketTipo] = useState('');
   const [newTicketDesc, setNewTicketDesc] = useState('');
   const [lastWhatsApp, setLastWhatsApp] = useState<{ sentAt: string; sentBy: string } | null>(null);
+  const [fiscalEditing, setFiscalEditing] = useState(false);
+  const [fiscalSaving, setFiscalSaving] = useState(false);
+  const [fiscalForm, setFiscalForm] = useState<Record<string, string>>({});
   const [equipOptions, setEquipOptions] = useState<any[]>([]);
   const [equipSearching, setEquipSearching] = useState(false);
   const [selectedEquipId, setSelectedEquipId] = useState<string>('');
@@ -162,23 +165,84 @@ export default function ClientDetailPage() {
     </div>
   );
 
+  const startFiscalEdit = () => {
+    setFiscalForm({
+      tipoDocumento: d.tipoDocumento || '',
+      numeroDocumento: d.numeroDocFiscal || '',
+      condicionFiscal: d.condicionFiscal || 'CONSUMIDOR_FINAL',
+      razonSocial: d.razonSocial || '',
+      telefono: d.telefono || '',
+      email: d.email || '',
+    });
+    setFiscalEditing(true);
+  };
+
+  const saveFiscal = async () => {
+    setFiscalSaving(true);
+    try {
+      await fiscalApi.updateClientFiscal(data.clientId, fiscalForm);
+      message.success('Datos fiscales actualizados');
+      setFiscalEditing(false);
+      loadClient();
+    } catch (err) { message.error(getErrorMessage(err)); }
+    finally { setFiscalSaving(false); }
+  };
+
   const tabFiscal = (
-    <Card>
-      <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-        <Descriptions.Item label="Tipo Documento">{d.tipoDocumento || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Nro Documento">{d.numeroDocFiscal || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Condición Fiscal">{d.condicionFiscal || 'CONSUMIDOR_FINAL'}</Descriptions.Item>
-        <Descriptions.Item label="Razón Social">{d.razonSocial || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Teléfono">{d.telefono || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Email">{d.email || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Zona">{d.zona || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Código Postal">{d.codigoPostal || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Localidad">{d.localidad || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Provincia">{d.provincia || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Tipo Comprobante">
-          <Tag color={d.tipoComprobante === 'FACTURA' ? 'blue' : 'default'}>{d.tipoComprobante || 'RAMITO'}</Tag>
-        </Descriptions.Item>
-      </Descriptions>
+    <Card extra={canOperate && !fiscalEditing && <Button size="small" onClick={startFiscalEdit}>Editar</Button>}>
+      {!fiscalEditing ? (
+        <Descriptions bordered column={{ xs: 1, sm: 2 }}>
+          <Descriptions.Item label="Tipo Documento">{d.tipoDocumento || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Nro Documento">{d.numeroDocFiscal || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Condición Fiscal">{d.condicionFiscal || 'CONSUMIDOR_FINAL'}</Descriptions.Item>
+          <Descriptions.Item label="Razón Social">{d.razonSocial || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Teléfono">{d.telefono || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Email">{d.email || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Zona">{d.zona || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Código Postal">{d.codigoPostal || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Localidad">{d.localidad || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Provincia">{d.provincia || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Tipo Comprobante">
+            <Tag color={d.tipoComprobante === 'FACTURA' ? 'blue' : 'default'}>{d.tipoComprobante || 'RAMITO'}</Tag>
+          </Descriptions.Item>
+        </Descriptions>
+      ) : (
+        <div style={{ maxWidth: 600 }}>
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Tipo Documento</Typography.Text>
+              <Select style={{ width: '100%' }} value={fiscalForm.tipoDocumento || undefined} onChange={(v) => setFiscalForm({ ...fiscalForm, tipoDocumento: v })}
+                placeholder="Seleccionar..." allowClear
+                options={[{ value: 'CUIT', label: 'CUIT' }, { value: 'CUIL', label: 'CUIL' }, { value: 'DNI', label: 'DNI' }, { value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' }]} />
+            </div>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Nro Documento</Typography.Text>
+              <Input value={fiscalForm.numeroDocumento} onChange={(e) => setFiscalForm({ ...fiscalForm, numeroDocumento: e.target.value })} placeholder="Sin guiones" />
+            </div>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Condición Fiscal</Typography.Text>
+              <Select style={{ width: '100%' }} value={fiscalForm.condicionFiscal} onChange={(v) => setFiscalForm({ ...fiscalForm, condicionFiscal: v })}
+                options={[{ value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' }, { value: 'MONOTRIBUTISTA', label: 'Monotributista' }, { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable Inscripto' }, { value: 'EXENTO', label: 'Exento' }]} />
+            </div>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Razón Social</Typography.Text>
+              <Input value={fiscalForm.razonSocial} onChange={(e) => setFiscalForm({ ...fiscalForm, razonSocial: e.target.value })} placeholder="Opcional" />
+            </div>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Teléfono</Typography.Text>
+              <Input value={fiscalForm.telefono} onChange={(e) => setFiscalForm({ ...fiscalForm, telefono: e.target.value })} placeholder="Ej: 2942412345" />
+            </div>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Email</Typography.Text>
+              <Input value={fiscalForm.email} onChange={(e) => setFiscalForm({ ...fiscalForm, email: e.target.value })} placeholder="Opcional" type="email" />
+            </div>
+            <Space style={{ marginTop: 8 }}>
+              <Button type="primary" onClick={saveFiscal} loading={fiscalSaving}>Guardar</Button>
+              <Button onClick={() => setFiscalEditing(false)}>Cancelar</Button>
+            </Space>
+          </Space>
+        </div>
+      )}
     </Card>
   );
 
