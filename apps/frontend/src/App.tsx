@@ -89,10 +89,11 @@ function AppLayout() {
       </Sider>
       <Layout>
         <Header style={{
-          background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0',
+          background: '#fff', padding: '0 16px', borderBottom: '1px solid #f0f0f0',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          overflow: 'hidden',
         }}>
-          <span style={{ fontWeight: 600, fontSize: 18 }}>Sistema de Seguimiento de Clientes</span>
+          <span style={{ fontWeight: 600, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Cable Tracking</span>
           {user && (
             <Dropdown menu={{
               items: [
@@ -101,11 +102,11 @@ function AppLayout() {
                 { key: 'logout', icon: <LogoutOutlined />, label: 'Cerrar sesión', onClick: logout },
               ],
             }}>
-              <Button type="text" icon={<UserOutlined />}>{user.name}</Button>
+              <Button type="text" icon={<UserOutlined />} style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</Button>
             </Dropdown>
           )}
         </Header>
-        <Content style={{ margin: 24 }}>
+        <Content style={{ margin: '16px 12px' }}>
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<DashboardPage />} />

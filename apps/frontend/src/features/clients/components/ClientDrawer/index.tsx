@@ -150,7 +150,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
           <div>
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
               {subscriptions.map((sub: any) => (
-                <Card key={sub.subscriptionId} size="small" style={{ flex: 1, minWidth: 220, border: sub.requiereCorte ? '1px solid #ff4d4f' : undefined }}
+                <Card key={sub.subscriptionId} size="small" style={{ flex: 1, minWidth: 0, border: sub.requiereCorte ? '1px solid #ff4d4f' : undefined }}
                   title={<Space size={4}>{sub.tipo === 'CABLE' ? '📺' : '🌐'} {sub.tipo} {sub.requiereCorte && <Tag color="red" style={{ margin: 0, fontSize: 10 }}>CORTE</Tag>}</Space>}
                   extra={canOperate && estado === 'ACTIVO' && <Button type="link" danger size="small" onClick={() => Modal.confirm({ title: `Cancelar ${sub.tipo}?`, okText: 'Sí', okType: 'danger', onOk: async () => { await clientsApi.deactivateSub(data.clientId, sub.subscriptionId); message.success('Cancelado'); onRefresh(); } })}>Cancelar</Button>}>
                   <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>

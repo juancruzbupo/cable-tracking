@@ -239,7 +239,7 @@ export default function ClientsPage() {
         title={<Space>{detail.detail?.nombreNormalizado || 'Detalle'} {detail.detail?.estado === 'BAJA' && <Tag color="default">BAJA</Tag>}</Space>}
         open={detail.open}
         onClose={detail.close}
-        width={Math.min(800, window.innerWidth * 0.85)}
+        width={window.innerWidth < 500 ? window.innerWidth - 24 : Math.min(800, window.innerWidth * 0.85)}
         destroyOnClose
       >
         {detail.loading && (

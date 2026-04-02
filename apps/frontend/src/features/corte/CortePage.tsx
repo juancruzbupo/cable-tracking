@@ -214,7 +214,7 @@ export default function CortePage() {
 
       {/* Modal envío masivo WhatsApp */}
       <Modal title={<Space><WhatsAppOutlined style={{ color: '#25D366' }} /> Recordatorios de pago</Space>}
-        open={masivoOpen} onCancel={() => setMasivoOpen(false)} footer={null} width={620}>
+        open={masivoOpen} onCancel={() => setMasivoOpen(false)} footer={null} width={Math.min(620, window.innerWidth - 32)}>
         <Alert type="info" showIcon style={{ marginBottom: 16 }}
           message={`${clientesConTel.length} clientes con teléfono de ${filtered.length} en corte`}
           description={filtered.length - clientesConTel.length > 0 ? `${filtered.length - clientesConTel.length} sin teléfono no aparecen en esta lista.` : undefined} />

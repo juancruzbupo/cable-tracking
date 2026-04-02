@@ -26,8 +26,9 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       background: '#f0f2f5',
+      padding: 16,
     }}>
-      <Card style={{ width: 380, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      <Card style={{ width: '100%', maxWidth: 380, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <Typography.Title level={3} style={{ margin: 0 }}>
             Cable Tracking

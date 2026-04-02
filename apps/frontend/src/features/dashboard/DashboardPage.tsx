@@ -152,9 +152,9 @@ export default function DashboardPage() {
       {/* Fila 6 — Zonas */}
       {tieneZonas && (
         <Card title="Morosidad por zona" size="small" style={{ marginTop: 16 }}>
-          <Table dataSource={zonas.zonas} rowKey="zona" size="small" pagination={false} columns={[
-            { title: 'Zona', dataIndex: 'zona' },
-            { title: 'Clientes', dataIndex: 'totalClientes', align: 'center' as const },
+          <Table dataSource={zonas.zonas} rowKey="zona" size="small" pagination={false} scroll={{ x: 600 }} columns={[
+            { title: 'Zona', dataIndex: 'zona', ellipsis: true },
+            { title: 'Clientes', dataIndex: 'totalClientes', width: 80, align: 'center' as const },
             { title: 'Al día', dataIndex: 'alDia', align: 'center' as const, render: (v: number) => <Tag color="green">{v}</Tag> },
             { title: 'En riesgo', dataIndex: 'enRiesgo', align: 'center' as const, render: (v: number) => v > 0 ? <Tag color="orange">{v}</Tag> : <Tag>0</Tag> },
             { title: 'En corte', dataIndex: 'enCorte', align: 'center' as const, render: (v: number) => v > 0 ? <Tag color="red">{v}</Tag> : <Tag>0</Tag> },
