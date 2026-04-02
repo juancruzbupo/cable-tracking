@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import DashboardPage from './features/dashboard/DashboardPage';
 import ClientsPage from './features/clients/ClientsPage';
+import ClientDetailPage from './features/clients/ClientDetailPage';
 import ImportPage from './features/import/ImportPage';
 import DocumentsPage from './features/documents/DocumentsPage';
 import CortePage from './features/corte/CortePage';
@@ -110,6 +111,7 @@ function AppLayout() {
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/clients" element={<ClientsPage />} />
+              <Route path="/clients/:id" element={<ClientDetailPage />} />
               {hasRole('ADMIN') && <Route path="/import" element={<ImportPage />} />}
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/corte" element={<CortePage />} />
