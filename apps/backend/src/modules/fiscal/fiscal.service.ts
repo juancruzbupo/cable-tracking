@@ -234,12 +234,12 @@ export class FiscalService {
     const updated = await this.prisma.client.update({
       where: { id: clientId },
       data: {
-        tipoDocumento: data.tipoDocumento,
-        numeroDocFiscal: data.numeroDocumento,
-        condicionFiscal: data.condicionFiscal,
-        razonSocial: data.razonSocial,
-        telefono: data.telefono,
-        email: data.email,
+        tipoDocumento: data.tipoDocumento || null,
+        numeroDocFiscal: data.numeroDocumento || null,
+        condicionFiscal: data.condicionFiscal || undefined,
+        razonSocial: data.razonSocial || null,
+        telefono: data.telefono || null,
+        email: data.email || null,
       },
       select: { id: true, tipoDocumento: true, numeroDocFiscal: true, condicionFiscal: true, razonSocial: true, telefono: true, email: true },
     });
