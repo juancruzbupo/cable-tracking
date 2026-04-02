@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card, Table, Input, Select, Tag, Space, Typography, Tooltip, Button,
   message, Drawer, Spin,
@@ -7,6 +7,7 @@ import {
   SearchOutlined, WarningOutlined, DownloadOutlined, EyeOutlined, PlusOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
+import { useSearchParams } from 'react-router-dom';
 import { exportApi } from '../../services/api';
 import { useClients, useClientDetail } from './hooks/useClients';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +22,12 @@ export default function ClientsPage() {
   } = useClients();
   const detail = useClientDetail();
   const { hasRole } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const cid = searchParams.get('clientId');
+    if (cid) detail.openDetail(cid);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [exporting, setExporting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const canExport = hasRole('ADMIN', 'OPERADOR');
@@ -218,10 +225,10 @@ export default function ClientsPage() {
 
       {/* Detail Drawer */}
       <Drawer
-        title={detail.detail?.nombreNormalizado || 'Detalle del cliente'}
+        title={<Space>{detail.detail?.nombreNormalizado || 'Detalle'} {detail.detail?.estado === 'BAJA' && <Tag color="default">BAJA</Tag>}</Space>}
         open={detail.open}
         onClose={detail.close}
-        width={640}
+        width={Math.min(800, window.innerWidth * 0.85)}
         destroyOnClose
       >
         {detail.loading && (
