@@ -19,6 +19,7 @@ export function useClients() {
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState<ClientStatus | undefined>();
   const [debtStatus, setDebtStatus] = useState<DebtStatus | undefined>();
+  const [zona, setZona] = useState<string | undefined>();
 
   const debouncedSearch = useDebounce(search);
 
@@ -30,6 +31,7 @@ export function useClients() {
           search: debouncedSearch || undefined,
           estado,
           debtStatus,
+          zona,
           page,
           limit: 20,
         });
@@ -41,7 +43,7 @@ export function useClients() {
         setLoading(false);
       }
     },
-    [debouncedSearch, estado, debtStatus],
+    [debouncedSearch, estado, debtStatus, zona],
   );
 
   useEffect(() => {
@@ -58,6 +60,8 @@ export function useClients() {
     setEstado,
     debtStatus,
     setDebtStatus,
+    zona,
+    setZona,
     load,
   };
 }

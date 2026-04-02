@@ -11,13 +11,14 @@ export default function ComprobantesPage() {
   const [data, setData] = useState<any>({ data: [], pagination: { total: 0, page: 1, limit: 20, totalPages: 0 } });
   const [loading, setLoading] = useState(true);
   const [estado, setEstado] = useState<string | undefined>();
+  const [tipo, setTipo] = useState<string | undefined>();
   const { hasRole } = useAuth();
 
   const load = useCallback(async (page = 1) => {
-    try { setLoading(true); setData(await fiscalApi.getComprobantes({ estado, page, limit: 20 })); }
+    try { setLoading(true); setData(await fiscalApi.getComprobantes({ estado, tipo, page, limit: 20 })); }
     catch (err) { message.error(getErrorMessage(err)); }
     finally { setLoading(false); }
-  }, [estado]);
+  }, [estado, tipo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -43,6 +44,8 @@ export default function ComprobantesPage() {
         <Space>
           <Select placeholder="Estado" allowClear value={estado} onChange={setEstado} style={{ width: 140 }}
             options={[{ value: 'PENDIENTE', label: 'Pendiente' }, { value: 'EMITIDO', label: 'Emitido' }, { value: 'ANULADO', label: 'Anulado' }, { value: 'ERROR', label: 'Error' }]} />
+          <Select placeholder="Tipo" allowClear value={tipo} onChange={setTipo} style={{ width: 140 }}
+            options={[{ value: 'FACTURA_A', label: 'Factura A' }, { value: 'FACTURA_B', label: 'Factura B' }, { value: 'FACTURA_C', label: 'Factura C' }, { value: 'RECIBO_X', label: 'Recibo X' }]} />
           {hasRole('ADMIN') && <Button type="primary" onClick={handleBatch}>Emitir comprobantes del mes</Button>}
         </Space>
       </div>

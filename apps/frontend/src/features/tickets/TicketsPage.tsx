@@ -21,6 +21,7 @@ export default function TicketsPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('ABIERTO');
+  const [tipoFilter, setTipoFilter] = useState<string | undefined>();
   const [resolveId, setResolveId] = useState<string | null>(null);
   const [resolveNotas, setResolveNotas] = useState('');
 
@@ -32,10 +33,13 @@ export default function TicketsPage() {
   const [creando, setCreando] = useState(false);
 
   const load = useCallback(async () => {
-    try { setLoading(true); const [d, s] = await Promise.all([ticketsApi.getAll(tab !== 'TODOS' ? { estado: tab } : {}), ticketsApi.getStats()]); setData(d); setStats(s); }
+    const params: Record<string, string> = {};
+    if (tab !== 'TODOS') params.estado = tab;
+    if (tipoFilter) params.tipo = tipoFilter;
+    try { setLoading(true); const [d, s] = await Promise.all([ticketsApi.getAll(params), ticketsApi.getStats()]); setData(d); setStats(s); }
     catch (err) { message.error(getErrorMessage(err)); }
     finally { setLoading(false); }
-  }, [tab]);
+  }, [tab, tipoFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -89,10 +93,14 @@ export default function TicketsPage() {
       )}
 
       <Card>
-        <Tabs activeKey={tab} onChange={setTab} items={[
-          { key: 'ABIERTO', label: `Abiertos (${stats?.abiertos ?? 0})` },
-          { key: 'TODOS', label: 'Todos' },
-        ]} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Tabs activeKey={tab} onChange={setTab} style={{ marginBottom: 0 }} items={[
+            { key: 'ABIERTO', label: `Abiertos (${stats?.abiertos ?? 0})` },
+            { key: 'TODOS', label: 'Todos' },
+          ]} />
+          <Select placeholder="Tipo de problema" value={tipoFilter} onChange={setTipoFilter} allowClear style={{ width: 200, marginBottom: 8 }}
+            options={Object.entries(TIPO_LABELS).map(([k, v]) => ({ value: k, label: v }))} />
+        </div>
         <Table dataSource={data.data} rowKey="id" loading={loading} pagination={{ total: data.pagination?.total, pageSize: 20 }} scroll={{ x: 800 }} columns={[
           { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
           { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={TIPO_COLORS[t]}>{TIPO_LABELS[t] || t}</Tag> },

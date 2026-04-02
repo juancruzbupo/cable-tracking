@@ -18,7 +18,7 @@ import type { ClientWithDebt, ClientStatus } from '../../types';
 export default function ClientsPage() {
   const {
     clients, pagination, loading, search, setSearch,
-    estado, setEstado, debtStatus, setDebtStatus, load,
+    estado, setEstado, debtStatus, setDebtStatus, zona, setZona, load,
   } = useClients();
   const detail = useClientDetail();
   const { hasRole } = useAuth();
@@ -110,6 +110,13 @@ export default function ClientsPage() {
               { value: '2_MESES', label: '2 meses' },
               { value: 'MAS_2_MESES', label: '+2 meses' },
             ]}
+          />
+          <Input
+            placeholder="Zona..."
+            value={zona}
+            onChange={(e) => setZona(e.target.value || undefined)}
+            style={{ width: 140 }}
+            allowClear
           />
         </Space>
       </Card>

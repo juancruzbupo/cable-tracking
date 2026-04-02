@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Tag, Typography, Button, Modal, Form, Input, InputNumber, Select, Switch, message } from 'antd';
+import { Card, Table, Tag, Typography, Button, Modal, Form, Input, InputNumber, Select, Switch, Space, message } from 'antd';
 import { PlusOutlined, DollarOutlined } from '@ant-design/icons';
 import { plansApi, getErrorMessage } from '../../services/api';
 import type { ServicePlan } from '../../types';
@@ -8,6 +8,8 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<ServicePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [filterTipo, setFilterTipo] = useState<string | undefined>();
+  const [filterActivo, setFilterActivo] = useState<boolean | undefined>();
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -38,8 +40,21 @@ export default function PlansPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>Nuevo plan</Button>
       </div>
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Select placeholder="Tipo" value={filterTipo} onChange={setFilterTipo} allowClear style={{ width: 140 }}
+            options={[{ value: 'CABLE', label: 'Cable' }, { value: 'INTERNET', label: 'Internet' }]} />
+          <Select placeholder="Estado" value={filterActivo === undefined ? undefined : filterActivo ? 'true' : 'false'} onChange={(v) => setFilterActivo(v === undefined ? undefined : v === 'true')} allowClear style={{ width: 140 }}
+            options={[{ value: 'true', label: 'Activos' }, { value: 'false', label: 'Inactivos' }]} />
+        </Space>
+      </Card>
+
       <Card>
-        <Table dataSource={plans} rowKey="id" loading={loading} pagination={false} scroll={{ x: 700 }} tableLayout="fixed" columns={[
+        <Table dataSource={plans.filter((p) => {
+          if (filterTipo && p.tipo !== filterTipo) return false;
+          if (filterActivo !== undefined && p.activo !== filterActivo) return false;
+          return true;
+        })} rowKey="id" loading={loading} pagination={false} scroll={{ x: 700 }} tableLayout="fixed" columns={[
           { title: 'Nombre', dataIndex: 'nombre', width: 200, ellipsis: true },
           { title: 'Tipo', dataIndex: 'tipo', width: 110, render: (t: string) => <Tag color={t === 'CABLE' ? 'blue' : 'green'}>{t}</Tag> },
           { title: 'Precio', dataIndex: 'precio', width: 120, render: (p: number) => p > 0 ? `$${Number(p).toLocaleString()}` : <Tag color="orange">Sin precio</Tag> },

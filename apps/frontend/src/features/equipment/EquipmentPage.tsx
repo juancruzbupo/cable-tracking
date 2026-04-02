@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Tag, Typography, Button, Modal, Form, Input, Select, Row, Col, Statistic, Spin, message } from 'antd';
-import { PlusOutlined, ToolOutlined, LinkOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Typography, Button, Modal, Form, Input, Select, Row, Col, Statistic, Spin, Space, message } from 'antd';
+import { PlusOutlined, ToolOutlined, LinkOutlined, SearchOutlined } from '@ant-design/icons';
 import { equipmentApi, clientsApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -17,6 +17,9 @@ export default function EquipmentPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
+  const [filterTipo, setFilterTipo] = useState<string | undefined>();
+  const [filterEstado, setFilterEstado] = useState<string | undefined>();
+  const [filterSearch, setFilterSearch] = useState('');
 
   // Assign modal
   const [assignModal, setAssignModal] = useState<{ equipId: string; equipLabel: string } | null>(null);
@@ -25,10 +28,14 @@ export default function EquipmentPage() {
   const [selectedClientId, setSelectedClientId] = useState('');
 
   const load = useCallback(async () => {
-    try { setLoading(true); const [eq, st] = await Promise.all([equipmentApi.getAll(), equipmentApi.getStats()]); setEquipment(eq.data || eq); setStats(st); }
+    const params: Record<string, string> = {};
+    if (filterTipo) params.tipo = filterTipo;
+    if (filterEstado) params.estado = filterEstado;
+    if (filterSearch) params.search = filterSearch;
+    try { setLoading(true); const [eq, st] = await Promise.all([equipmentApi.getAll(params), equipmentApi.getStats()]); setEquipment(eq.data || eq); setStats(st); }
     catch (err) { message.error(getErrorMessage(err)); }
     finally { setLoading(false); }
-  }, []);
+  }, [filterTipo, filterEstado, filterSearch]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -74,6 +81,16 @@ export default function EquipmentPage() {
           <Col xs={12} sm={6}><Card size="small"><Statistic title="En reparación" value={stats.porEstado.enReparacion} valueStyle={{ color: '#faad14' }} /></Card></Col>
         </Row>
       )}
+
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input placeholder="Buscar serie, marca, modelo..." prefix={<SearchOutlined />} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} allowClear style={{ width: 240 }} />
+          <Select placeholder="Tipo" value={filterTipo} onChange={setFilterTipo} allowClear style={{ width: 160 }}
+            options={TIPO_OPTIONS.map((t) => ({ value: t, label: t }))} />
+          <Select placeholder="Estado" value={filterEstado} onChange={setFilterEstado} allowClear style={{ width: 160 }}
+            options={[{ value: 'EN_DEPOSITO', label: 'En depósito' }, { value: 'ASIGNADO', label: 'Asignado' }, { value: 'EN_REPARACION', label: 'En reparación' }, { value: 'DE_BAJA', label: 'De baja' }]} />
+        </Space>
+      </Card>
 
       <Card>
         <Table dataSource={equipment} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} scroll={{ x: 800 }} columns={[

@@ -90,6 +90,7 @@ export const clientsApi = {
     search?: string;
     estado?: ClientStatus;
     debtStatus?: DebtStatus;
+    zona?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<ClientWithDebt>> => {
