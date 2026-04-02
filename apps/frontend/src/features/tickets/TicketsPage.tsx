@@ -55,7 +55,7 @@ export default function TicketsPage() {
     if (!search || search.length < 2) return;
     setBuscandoClientes(true);
     try {
-      const res = await clientsApi.getAll({ search, estado: 'ACTIVO' as any, limit: 20 });
+      const res = await clientsApi.getAll({ search, estado: 'ACTIVO', limit: 20 });
       setClientesOptions(res.data || []);
     } catch { /* ignore */ }
     finally { setBuscandoClientes(false); }

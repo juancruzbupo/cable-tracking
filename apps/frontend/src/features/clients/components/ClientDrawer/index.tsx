@@ -38,7 +38,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
   const { hasRole } = useAuth();
   const canOperate = hasRole('ADMIN', 'OPERADOR');
   const isAdmin = hasRole('ADMIN');
-  const d = data as any;
+  const d = data;
   const activeSubs = subscriptions.filter((s: any) => s.tipo);
 
   // State
@@ -92,7 +92,7 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
 
   const handleWhatsApp = async () => {
     const msg = generarMensajeDeuda({ nombre: nombreNormalizado, deudaCable: data.deudaCable, deudaInternet: data.deudaInternet, cantidadDeuda: data.cantidadDeuda });
-    window.open(generarLinkWhatsApp(d.telefono, msg), '_blank');
+    window.open(generarLinkWhatsApp(d.telefono!, msg), '_blank');
     try { await clientsApi.logWhatsApp(data.clientId); setLastWhatsApp({ sentAt: new Date().toISOString(), sentBy: 'Vos' }); } catch { /* */ }
   };
 

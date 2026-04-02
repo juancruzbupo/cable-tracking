@@ -56,6 +56,8 @@ export interface ClientDebtInfo {
   estado: ClientStatus;
   fechaAlta: string | null;
   calle: string | null;
+  zona?: string | null;
+  telefono?: string | null;
   mesesObligatorios: string[];
   mesesPagados: string[];
   mesesAdeudados: string[];
@@ -75,6 +77,15 @@ export interface ClientWithDebt extends Client {
 
 export interface ClientDetailResult extends ClientDebtInfo {
   nombreOriginal: string;
+  tipoDocumento?: string | null;
+  numeroDocFiscal?: string | null;
+  condicionFiscal?: string;
+  razonSocial?: string | null;
+  email?: string | null;
+  codigoPostal?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  tipoComprobante?: string;
   documents: Array<{
     id: string;
     tipo: string;
@@ -175,7 +186,12 @@ export interface DashboardMetrics {
     requierenCorte: number;
     tasaMorosidad: number;
     clientesParaCorte: string[];
+    scoring?: { bueno: number; regular: number; riesgo: number; critico: number };
   };
+  mrr?: { teorico: number; recaudadoMesActual: number; porcentaje: number };
+  clientesEnRiesgo?: number;
+  crecimientoNeto?: number;
+  penetracionInternet?: number;
   documentos: {
     ramitos: number;
     facturas: number;

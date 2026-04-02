@@ -50,7 +50,7 @@ export default function EquipmentPage() {
     if (!search || search.length < 2) return;
     setClientSearching(true);
     try {
-      const res = await clientsApi.getAll({ search, estado: 'ACTIVO' as any, limit: 20 });
+      const res = await clientsApi.getAll({ search, estado: 'ACTIVO', limit: 20 });
       setClientOptions(res.data || []);
     } catch { /* */ }
     finally { setClientSearching(false); }

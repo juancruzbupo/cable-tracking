@@ -30,11 +30,11 @@ export default function CortePage() {
   }, []);
 
   // Zonas únicas para el filtro
-  const zonas = [...new Set(clients.map((c) => (c as any).zona || (c.calle ? 'Con calle' : 'Sin datos')))].sort();
+  const zonas = [...new Set(clients.map((c) => c.zona || (c.calle ? 'Con calle' : 'Sin datos')))].sort();
 
   // Filtrar
   const filtered = clients.filter((c) => {
-    if (zonaFilter && ((c as any).zona || 'Sin datos') !== zonaFilter) return false;
+    if (zonaFilter && (c.zona || 'Sin datos') !== zonaFilter) return false;
     if (search && !c.nombreNormalizado.toLowerCase().includes(search.toLowerCase()) && !c.codCli.includes(search)) return false;
     if (servicioFilter === 'CABLE' && !c.requiereCorteCable) return false;
     if (servicioFilter === 'INTERNET' && !c.requiereCorteInternet) return false;
@@ -55,8 +55,8 @@ export default function CortePage() {
       'Código': c.codCli,
       'Cliente': c.nombreNormalizado,
       'Calle': c.calle || '',
-      'Zona': (c as any).zona || '',
-      'Teléfono': (c as any).telefono || '',
+      'Zona': c.zona || '',
+      'Teléfono': c.telefono || '',
       'Cable': c.requiereCorteCable ? `${c.deudaCable} meses` : 'Al día',
       'Internet': c.requiereCorteInternet ? `${c.deudaInternet} meses` : 'Al día',
       'Total deuda': c.cantidadDeuda,
@@ -231,7 +231,7 @@ export default function CortePage() {
           <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}>
             <Typography.Text type="secondary" style={{ fontSize: 11 }}>Vista previa del mensaje:</Typography.Text>
             <Typography.Text style={{ whiteSpace: 'pre-wrap', fontSize: 12, display: 'block', marginTop: 4 }}>
-              {generarMensajeDeuda({ nombre: clientesConTel[0]?.nombreNormalizado, deudaCable: (clientesConTel[0] as any)?.deudaCable, deudaInternet: (clientesConTel[0] as any)?.deudaInternet, cantidadDeuda: clientesConTel[0]?.cantidadDeuda })}
+              {generarMensajeDeuda({ nombre: clientesConTel[0]?.nombreNormalizado, deudaCable: clientesConTel[0]?.deudaCable, deudaInternet: clientesConTel[0]?.deudaInternet, cantidadDeuda: clientesConTel[0]?.cantidadDeuda })}
             </Typography.Text>
           </Card>
         )}

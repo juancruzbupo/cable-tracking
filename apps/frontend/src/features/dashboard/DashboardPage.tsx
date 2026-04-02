@@ -54,7 +54,7 @@ export default function DashboardPage() {
   if (!data) return null;
 
   const { resumen, deuda } = data;
-  const d = data as any; // extended fields
+  const d = data;
 
   const pie = [
     { name: 'Al día', value: deuda.alDia },
@@ -124,10 +124,10 @@ export default function DashboardPage() {
 
       {/* Fila 3 — Scoring de clientes */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={12} sm={6}><Card><Statistic title="Bueno" value={(deuda as any).scoring?.bueno ?? deuda.alDia} valueStyle={{ color: '#52c41a' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>al día</span>} /></Card></Col>
-        <Col xs={12} sm={6}><Card><Statistic title="Regular" value={(deuda as any).scoring?.regular ?? deuda.unMes} valueStyle={{ color: '#faad14' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>1 mes</span>} /></Card></Col>
-        <Col xs={12} sm={6}><Card><Statistic title="Riesgo" value={(deuda as any).scoring?.riesgo ?? deuda.dosMeses} valueStyle={{ color: '#ff7a45' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>2-3 meses</span>} /></Card></Col>
-        <Col xs={12} sm={6}><Card><Statistic title="Crítico" value={(deuda as any).scoring?.critico ?? deuda.masDosMeses} prefix={<WarningOutlined />} valueStyle={{ color: '#f5222d' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>4+ / corte</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Bueno" value={deuda.scoring?.bueno ?? deuda.alDia} valueStyle={{ color: '#52c41a' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>al día</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Regular" value={deuda.scoring?.regular ?? deuda.unMes} valueStyle={{ color: '#faad14' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>1 mes</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Riesgo" value={deuda.scoring?.riesgo ?? deuda.dosMeses} valueStyle={{ color: '#ff7a45' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>2-3 meses</span>} /></Card></Col>
+        <Col xs={12} sm={6}><Card><Statistic title="Crítico" value={deuda.scoring?.critico ?? deuda.masDosMeses} prefix={<WarningOutlined />} valueStyle={{ color: '#f5222d' }} suffix={<span style={{ fontSize: 12, color: '#999' }}>4+ / corte</span>} /></Card></Col>
       </Row>
 
       {/* Fila 4 — Gráficos */}
