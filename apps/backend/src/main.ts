@@ -41,6 +41,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // HTTP timeout (60s para la mayoría, exports/billing tienen su propio timeout en frontend)
+  const server = app.getHttpServer();
+  server.setTimeout(60000);
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
   logger.log(`🚀 Backend running on http://localhost:${port}`);

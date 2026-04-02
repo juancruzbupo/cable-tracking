@@ -4,6 +4,8 @@ import { ClientStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ClientsService } from '../clients/clients.service';
 
+const BATCH_SIZE = 500;
+
 @Injectable()
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
@@ -24,26 +26,30 @@ export class SchedulerService {
   async recalcularDeudas() {
     this.logger.log('Iniciando recalculo nocturno de deudas...');
 
-    // Cargar umbralCorte de config (una sola vez, fuera del loop)
     const config = await this.prisma.empresaConfig.findFirst();
     const umbralCorte = config?.umbralCorte ?? 1;
 
-    const subs = await this.prisma.subscription.findMany({
-      where: { estado: ClientStatus.ACTIVO },
-      include: {
-        client: { select: { id: true, codCli: true, nombreNormalizado: true, estado: true, fechaAlta: true, calle: true } },
-        paymentPeriods: { select: { year: true, month: true } },
-        plan: { include: { promotions: { where: { activa: true, tipo: 'MESES_GRATIS' as const } } } },
-        clientPromotions: { include: { promotion: { select: { id: true, nombre: true, tipo: true, valor: true, fechaInicio: true, fechaFin: true } } } },
-      },
-    });
-
+    let processed = 0;
     let conCorte = 0;
-    const BATCH = 500;
+    let cursor: string | undefined;
 
-    for (let i = 0; i < subs.length; i += BATCH) {
-      const batch = subs.slice(i, i + BATCH);
-      const updates = batch.map((sub) => {
+    // Cursor-based pagination: carga de a BATCH_SIZE en vez de todo a memoria
+    while (true) {
+      const subs = await this.prisma.subscription.findMany({
+        where: { estado: ClientStatus.ACTIVO },
+        include: {
+          paymentPeriods: { select: { year: true, month: true } },
+          plan: { include: { promotions: { where: { activa: true, tipo: 'MESES_GRATIS' as const } } } },
+          clientPromotions: { include: { promotion: { select: { id: true, nombre: true, tipo: true, valor: true, fechaInicio: true, fechaFin: true } } } },
+        },
+        take: BATCH_SIZE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        orderBy: { id: 'asc' },
+      });
+
+      if (subs.length === 0) break;
+
+      const updates = subs.map((sub) => {
         const promosGratis = [
           ...(sub.plan?.promotions || [])
             .filter((p) => p.tipo === 'MESES_GRATIS')
@@ -59,10 +65,15 @@ export class SchedulerService {
           data: { deudaCalculada: debt.cantidadDeuda, requiereCorte: debt.requiereCorte, ultimoCalculo: new Date() },
         });
       });
+
       await this.prisma.$transaction(updates);
+      processed += subs.length;
+      cursor = subs[subs.length - 1].id;
+
+      if (subs.length < BATCH_SIZE) break;
     }
 
-    this.lastRun = { at: new Date(), processed: subs.length, conCorte };
-    this.logger.log(`Recalculo completo: ${subs.length} suscripciones, ${conCorte} en corte (umbral: ${umbralCorte})`);
+    this.lastRun = { at: new Date(), processed, conCorte };
+    this.logger.log(`Recalculo completo: ${processed} suscripciones, ${conCorte} en corte (umbral: ${umbralCorte})`);
   }
 }
