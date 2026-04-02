@@ -95,3 +95,33 @@ Estado actual: ~1100 clientes. Estos items se implementan cuando el negocio crez
 | Clientes activos | > 10000 | Implementar Prioridad 2-3 |
 | AuditLog rows | > 1M | Implementar archivado (3.2) |
 | Requests/min | > 500 | Múltiples instancias (3.4) |
+| Consultas telefónicas | Saturan al operador | Portal del cliente (4.1) |
+
+---
+
+## Prioridad 4 — Features futuras (cuando el negocio lo justifique)
+
+### 4.1 Portal del cliente (web público)
+**Cuándo:** 2000+ clientes, operadores saturados con consultas telefónicas.
+**Qué:** Página pública donde el abonado ve su estado de cuenta, historial de pagos, tickets, y datos personales.
+**Requiere:** Sistema de autenticación separado para clientes (código + DNI, o email + password), nueva UI pública, seguridad de datos sensibles.
+**Esfuerzo:** 2-3 semanas. Nueva app frontend + endpoints públicos + auth de clientes.
+**Alternativa más simple:** Bot de WhatsApp que responde estado de cuenta automáticamente (ver 4.2).
+
+### 4.2 Bot WhatsApp para consultas automáticas
+**Cuándo:** Antes del portal, como solución intermedia cuando las consultas crecen.
+**Qué:** El cliente manda "DEUDA 338" (su código) por WhatsApp y recibe automáticamente su estado de cuenta con desglose cable/internet.
+**Requiere:** API de WhatsApp Business (Meta) o proveedor como Twilio. Webhook que recibe mensajes y consulta la API del sistema.
+**Esfuerzo:** 1 semana. Webhook + integración con API existente.
+**Ventaja:** Usa el canal que el cliente ya tiene (WhatsApp), no requiere que aprenda una web nueva.
+
+### 4.3 App móvil para técnicos
+**Cuándo:** Equipo de técnicos > 3 personas, trabajo en campo frecuente.
+**Qué:** App React Native o PWA para que el técnico vea la lista de corte por zona, marque cortes realizados, registre tickets en campo, y escanee equipos por QR/serie.
+**Esfuerzo:** 3-4 semanas. Reutiliza la API REST existente.
+
+### 4.4 Integración con pasarela de pagos
+**Cuándo:** Clientes piden pagar online, o se quiere automatizar la cobranza.
+**Qué:** Link de pago por Mercado Pago / Stripe que al confirmarse registra automáticamente el PaymentPeriod en el sistema.
+**Requiere:** Webhook de la pasarela + matching con cliente por referencia de pago.
+**Esfuerzo:** 1-2 semanas.
