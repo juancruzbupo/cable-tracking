@@ -6,6 +6,7 @@ import {
 } from '@ant-design/icons';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { dashboardApi, getErrorMessage } from '../../services/api';
 import type { DashboardMetrics } from '../../types';
 
@@ -51,6 +52,7 @@ export default function DashboardPage() {
   if (error) return <Alert type="error" message={error} showIcon />;
   if (!data) return null;
 
+  const navigate = useNavigate();
   const { resumen, deuda } = data;
   const d = data as any; // extended fields
 
@@ -183,7 +185,7 @@ export default function DashboardPage() {
           {ticketsDash.ultimosAbiertos?.length > 0 && (
             <Card title="Tickets abiertos más antiguos" size="small" style={{ marginTop: 16 }}>
               <Table dataSource={ticketsDash.ultimosAbiertos} rowKey="id" size="small" pagination={false} columns={[
-                { title: 'Cliente', dataIndex: 'cliente' },
+                { title: 'Cliente', dataIndex: 'cliente', render: (name: string, r: any) => <a onClick={() => navigate(`/clients?clientId=${r.clienteId}`)} style={{ cursor: 'pointer' }}>{name}</a> },
                 { title: 'Tipo', dataIndex: 'tipo', width: 140, render: (t: string) => <Tag color={{ SIN_SENIAL: 'red', LENTITUD_INTERNET: 'orange', RECONEXION: 'blue', INSTALACION: 'green', CAMBIO_EQUIPO: 'purple' }[t] || 'default'}>{t}</Tag> },
                 { title: 'Descripción', dataIndex: 'descripcion', ellipsis: true, render: (v: string) => v || '—' },
                 { title: 'Desde hace', dataIndex: 'desdeHace', width: 130 },

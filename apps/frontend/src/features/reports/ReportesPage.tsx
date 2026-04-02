@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, Typography, DatePicker, Row, Col, Statistic, Progress, Table, Button, Space, Spin, message } from 'antd';
 import { BarChartOutlined, ArrowUpOutlined, ArrowDownOutlined, FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { billingApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ReportesPage() {
+  const navigate = useNavigate();
   const [month, setMonth] = useState<dayjs.Dayjs>(dayjs().subtract(1, 'month'));
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,7 @@ export default function ReportesPage() {
               Basado en pagos registrados en el sistema.
             </Typography.Text>
             <Table dataSource={report.clientesSinPago} rowKey="id" pagination={false} size="small" columns={[
-              { title: 'Cliente', dataIndex: 'nombre' },
+              { title: 'Cliente', dataIndex: 'nombre', render: (name: string, r: any) => <a onClick={() => navigate(`/clients?clientId=${r.id}`)} style={{ cursor: 'pointer' }}>{name}</a> },
             ]} />
           </Card>
         </>

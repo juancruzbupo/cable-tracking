@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Select, Tag, Typography, Space, message } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { documentsApi, getErrorMessage } from '../../services/api';
 import type { Document, Pagination } from '../../types';
 
 const { Option } = Select;
 
 export default function DocumentsPage() {
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
@@ -38,7 +40,7 @@ export default function DocumentsPage() {
       title: 'Cliente',
       key: 'cliente',
       render: (_: unknown, record: Document) =>
-        record.client?.nombreNormalizado || '—',
+        record.client ? <a onClick={() => navigate(`/clients?clientId=${record.clientId}`)} style={{ cursor: 'pointer' }}>{record.client.nombreNormalizado}</a> : '—',
       ellipsis: true,
     },
     {

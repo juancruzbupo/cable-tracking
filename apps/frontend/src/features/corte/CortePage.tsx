@@ -3,6 +3,7 @@ import { Card, Table, Tag, Typography, Spin, Alert, Statistic, Row, Col, Button,
 import { WarningOutlined, ScissorOutlined, FileExcelOutlined, FilePdfOutlined, WhatsAppOutlined, SearchOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { dashboardApi, billingApi, clientsApi, getErrorMessage } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { generarMensajeDeuda, generarLinkWhatsApp } from '../../shared/utils/whatsapp';
 import type { ClientDebtInfo } from '../../types';
@@ -15,6 +16,7 @@ export default function CortePage() {
   const [servicioFilter, setServicioFilter] = useState<string | undefined>();
   const [search, setSearch] = useState('');
   const { hasRole } = useAuth();
+  const navigate = useNavigate();
   const canExport = hasRole('ADMIN', 'OPERADOR');
   const [masivoOpen, setMasivoOpen] = useState(false);
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
@@ -145,7 +147,7 @@ export default function CortePage() {
               width: 220,
               ellipsis: true,
               sorter: (a: ClientDebtInfo, b: ClientDebtInfo) => a.nombreNormalizado.localeCompare(b.nombreNormalizado),
-              render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span>,
+              render: (name: string, r: ClientDebtInfo) => <a onClick={() => navigate(`/clients?clientId=${r.clientId}`)} style={{ cursor: 'pointer', fontWeight: 500 }}>{name}</a>,
             },
             {
               title: 'Dirección',

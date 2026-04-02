@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Tag, Typography, Button, Select, Space, message, Modal } from 'antd';
 import { FileTextOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { fiscalApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,6 +14,7 @@ export default function ComprobantesPage() {
   const [estado, setEstado] = useState<string | undefined>();
   const [tipo, setTipo] = useState<string | undefined>();
   const { hasRole } = useAuth();
+  const navigate = useNavigate();
 
   const load = useCallback(async (page = 1) => {
     try { setLoading(true); setData(await fiscalApi.getComprobantes({ estado, tipo, page, limit: 20 })); }
@@ -56,7 +58,7 @@ export default function ComprobantesPage() {
           columns={[
             { title: 'Número', width: 130, render: (_: any, r: any) => `${String(r.puntoVenta).padStart(4, '0')}-${String(r.numero).padStart(8, '0')}` },
             { title: 'Tipo', dataIndex: 'tipo', width: 100, render: (t: string) => <Tag>{t.replace('_', ' ')}</Tag> },
-            { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client?.nombreNormalizado || '—' },
+            { title: 'Cliente', width: 200, ellipsis: true, render: (_: any, r: any) => r.client ? <a onClick={() => navigate(`/clients?clientId=${r.clientId}`)} style={{ cursor: 'pointer' }}>{r.client.nombreNormalizado}</a> : '—' },
             { title: 'Fecha', dataIndex: 'fecha', width: 110, render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
             { title: 'Total', dataIndex: 'total', width: 100, render: (t: number) => `$${Number(t).toLocaleString()}` },
             { title: 'Estado', dataIndex: 'estado', width: 100, render: (e: string) => <Tag color={ESTADO_COLORS[e]}>{e}</Tag> },
