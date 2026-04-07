@@ -1,9 +1,10 @@
 import {
-  Controller, Post, Get, Patch, Param, Body, Request,
-  ForbiddenException, NotFoundException, UnauthorizedException,
+  Controller, Post, Get, Patch, Param, Body, Request, Req, Res,
+  ForbiddenException, NotFoundException, UnauthorizedException, Logger,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { Request as ExpressRequest, Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../../common/audit/audit.service';
@@ -15,9 +16,19 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 8 * 60 * 60 * 1000,
+  path: '/',
+};
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
@@ -27,14 +38,51 @@ export class AuthController {
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const result = await this.authService.login(dto.email, dto.password);
+      // Set httpOnly cookie
+      res.cookie('access_token', result.accessToken, COOKIE_OPTIONS);
+      // Log successful login
+      this.audit.log(result.user.id, 'LOGIN_SUCCESS', 'AUTH', result.user.id, {
+        email: dto.email, ip: req.ip,
+      }).catch(() => {});
+      return result;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        this.logger.warn(`Login failed for ${dto.email} from ${req.ip}`);
+        // Log failed attempt using any admin user as audit actor
+        const admin = await this.usersService.findFirstAdmin();
+        if (admin) {
+          this.audit.log(admin.id, 'LOGIN_FAILED', 'AUTH', 'login', {
+            email: dto.email, ip: req.ip, userAgent: req.headers['user-agent'],
+          }).catch(() => {});
+        }
+      }
+      throw error;
+    }
   }
 
   @Post('refresh')
   @Roles('ADMIN', 'OPERADOR', 'VISOR')
-  refresh(@Request() req: AuthenticatedRequest) {
-    return this.authService.refresh(req.user.id);
+  async refresh(
+    @Request() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.refresh(req.user.id);
+    res.cookie('access_token', result.accessToken, COOKIE_OPTIONS);
+    return result;
+  }
+
+  @Post('logout')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token', { path: '/' });
+    return { ok: true };
   }
 
   @Get('me')

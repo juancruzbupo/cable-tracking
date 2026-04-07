@@ -23,6 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
+    // Call server to clear httpOnly cookie (fire-and-forget)
+    authApi.logout().catch(() => {});
     localStorage.removeItem(TOKEN_KEY);
     setAuthToken(null);
     setToken(null);
@@ -30,28 +32,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (!stored) {
-      setLoading(false);
-      return;
-    }
-
-    setAuthToken(stored);
+    // Try cookie-based auth first (call /auth/me, cookie is sent automatically)
     authApi.me()
       .then((u) => {
+        // Cookie auth worked
+        const stored = localStorage.getItem(TOKEN_KEY);
         setToken(stored);
         setUser(u);
+        if (stored) setAuthToken(stored);
       })
       .catch(() => {
-        logout();
+        // Cookie auth failed, try localStorage fallback
+        const stored = localStorage.getItem(TOKEN_KEY);
+        if (!stored) {
+          setLoading(false);
+          return;
+        }
+
+        setAuthToken(stored);
+        authApi.me()
+          .then((u) => {
+            setToken(stored);
+            setUser(u);
+          })
+          .catch(() => {
+            localStorage.removeItem(TOKEN_KEY);
+            setAuthToken(null);
+          });
       })
       .finally(() => setLoading(false));
-  }, [logout]);
+  }, []);
 
   useEffect(() => {
     setOnUnauthorized(() => {
       logout();
-      message.error('Sesión expirada, volvé a iniciar sesión');
+      message.error('Sesion expirada, volve a iniciar sesion');
     });
   }, [logout]);
 
@@ -64,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password);
+    // Server sets httpOnly cookie; also store in localStorage for Swagger/debug
     localStorage.setItem(TOKEN_KEY, res.accessToken);
     setAuthToken(res.accessToken);
     setToken(res.accessToken);

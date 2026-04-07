@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DocumentType, ClientStatus, Prisma } from '@prisma/client';
+import { DocumentType, ClientStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   parseExcelBuffer,
@@ -7,7 +7,9 @@ import {
 } from '../../common/utils/excel-parser.util';
 import { normalizeName } from '../../common/utils/normalize-name.util';
 import { parsePeriodsFromDescription, detectServiceType } from '../../common/utils/parse-periods.util';
-import { DashboardService } from '../dashboard/dashboard.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { DomainEvents, ImportCompletedEvent } from '../../common/events/domain-events';
+import { ImportRepository } from './import.repository';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -69,7 +71,8 @@ export class ImportService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly dashboardService: DashboardService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly repository: ImportRepository,
   ) {}
 
   // ══════════════════════════════════════════════════════════════
@@ -212,7 +215,7 @@ export class ImportService {
       { timeout: 120000 },
     );
 
-    try { this.dashboardService.invalidateCache(); } catch (e) { this.logger.error('Error invalidando cache', e); }
+    this.eventEmitter.emit(DomainEvents.IMPORT_COMPLETED, new ImportCompletedEvent('CLIENTES', validRows));
 
     await this.logImport({
       tipo: 'CLIENTES',
@@ -259,26 +262,7 @@ export class ImportService {
 
     await this.prisma.executeInTransaction(
       async (tx) => {
-        // ── PASO 1: PISAR → borrar todo del tipo (excepto manuales) ──
-        await tx.paymentPeriod.deleteMany({
-          where: {
-            document: {
-              tipo: docType,
-              NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
-            },
-          },
-        });
-        const deleted = await tx.document.deleteMany({
-          where: {
-            tipo: docType,
-            NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
-          },
-        });
-        this.logger.log(
-          `Eliminados ${deleted.count} documentos tipo ${tipo} (manuales preservados)`,
-        );
-
-        // ── PASO 2: Cargar mapas (clientes + suscripciones) ─
+        // ── PASO 1: Cargar mapas (clientes + suscripciones) ─
         const allClients = await tx.client.findMany({
           select: { id: true, codCli: true, fechaAlta: true },
         });
@@ -398,8 +382,34 @@ export class ImportService {
           validRows++;
         }
 
-        // ── PASO 4: Batch insert documentos ─────────────────
+        // ── PASO 4: Per-client delete + batch insert documentos ─
         if (docBatch.length > 0) {
+          // Get unique codCli values from the incoming data
+          const codClisInFile = [...new Set(docBatch.map((d) => d.codCli))];
+
+          // For each client in the file, delete their old docs of this type (not MANUAL)
+          for (const codCli of codClisInFile) {
+            await tx.paymentPeriod.deleteMany({
+              where: {
+                codCli,
+                document: {
+                  tipo: docType,
+                  NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
+                },
+              },
+            });
+            await tx.document.deleteMany({
+              where: {
+                codCli,
+                tipo: docType,
+                NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
+              },
+            });
+          }
+          this.logger.log(
+            `Eliminados documentos tipo ${tipo} para ${codClisInFile.length} clientes del archivo (manuales preservados)`,
+          );
+
           const CHUNK = 500;
           for (let i = 0; i < docBatch.length; i += CHUNK) {
             const chunk = docBatch.slice(i, i + CHUNK).map(({ serviceType: _st, ...d }) => d);
@@ -409,7 +419,11 @@ export class ImportService {
 
           // ── PASO 5: Recuperar IDs y crear períodos ────────
           const createdDocs = await tx.document.findMany({
-            where: { tipo: docType },
+            where: {
+              tipo: docType,
+              codCli: { in: codClisInFile },
+              NOT: { numeroDocumento: { startsWith: 'MANUAL-' } },
+            },
             select: { id: true, clientId: true, codCli: true, subscriptionId: true, descripcionOriginal: true },
           });
 
@@ -453,7 +467,7 @@ export class ImportService {
       { timeout: 180000 },
     );
 
-    try { this.dashboardService.invalidateCache(); } catch (e) { this.logger.error('Error invalidando cache', e); }
+    this.eventEmitter.emit(DomainEvents.IMPORT_COMPLETED, new ImportCompletedEvent(tipo, validRows));
 
     await this.logImport({
       tipo,
@@ -485,10 +499,7 @@ export class ImportService {
   // ══════════════════════════════════════════════════════════════
 
   async getImportLogs(limit = 20) {
-    return this.prisma.importLog.findMany({
-      orderBy: { executedAt: 'desc' },
-      take: limit,
-    });
+    return this.repository.getImportLogs(limit);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -542,23 +553,6 @@ export class ImportService {
     updatedClients: number;
     errors: ExcelParseError[];
   }) {
-    await this.prisma.importLog.create({
-      data: {
-        tipo: data.tipo,
-        fileName: data.fileName,
-        totalRows: data.totalRows,
-        validRows: data.validRows,
-        invalidRows: data.invalidRows,
-        newClients: data.newClients,
-        updatedClients: data.updatedClients,
-        errors: data.errors.length > 0 ? (data.errors as unknown as Prisma.InputJsonValue) : undefined,
-        status:
-          data.validRows === 0 && data.invalidRows > 0
-            ? 'FAILED'
-            : data.invalidRows > 0
-              ? 'PARTIAL'
-              : 'SUCCESS',
-      },
-    });
+    await this.repository.createImportLog(data);
   }
 }

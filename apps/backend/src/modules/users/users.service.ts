@@ -67,6 +67,10 @@ export class UsersService {
     });
   }
 
+  async findFirstAdmin() {
+    return this.prisma.user.findFirst({ where: { role: 'ADMIN', isActive: true }, select: { id: true } });
+  }
+
   async validatePassword(plain: string, hashed: string): Promise<boolean> {
     return bcrypt.compare(plain, hashed);
   }

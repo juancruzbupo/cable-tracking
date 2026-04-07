@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useReducer } from 'react';
 import {
   Card, Select, Tag, Space, Typography, Button, Tabs, Switch,
   message, Descriptions, Timeline, Badge, Divider, DatePicker,
@@ -13,6 +13,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/es';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientsApi, promotionsApi, equipmentApi, ticketsApi, fiscalApi, getErrorMessage } from '../../../../services/api';
 import { useAuth } from '../../../../context/AuthContext';
 import { generarMensajeDeuda, generarLinkWhatsApp } from '../../../../shared/utils/whatsapp';
@@ -33,6 +34,107 @@ const ACTION_LABELS: Record<string, string> = {
   WHATSAPP_SENT: 'WhatsApp enviado', CLIENT_FISCAL_UPDATED: 'Datos fiscales actualizados',
 };
 
+// ── useReducer types ──────────────────────────────────────────────────────
+
+interface DrawerUIState {
+  activeTab: string;
+  noteText: string;
+  payMonth: dayjs.Dayjs | null;
+  paySubId: string;
+  newTicketTipo: string;
+  newTicketDesc: string;
+  selectedPromoId: string;
+  selectedPromoSubId: string;
+  selectedEquipId: string;
+  fiscalEditing: boolean;
+  fiscalSaving: boolean;
+  fiscalForm: Record<string, string>;
+  equipOptions: any[];
+  equipSearching: boolean;
+}
+
+const initialState: DrawerUIState = {
+  activeTab: 'servicios',
+  noteText: '',
+  payMonth: null,
+  paySubId: '',
+  newTicketTipo: '',
+  newTicketDesc: '',
+  selectedPromoId: '',
+  selectedPromoSubId: '',
+  selectedEquipId: '',
+  fiscalEditing: false,
+  fiscalSaving: false,
+  fiscalForm: {},
+  equipOptions: [],
+  equipSearching: false,
+};
+
+type DrawerAction =
+  | { type: 'SET_TAB'; payload: string }
+  | { type: 'SET_NOTE_TEXT'; payload: string }
+  | { type: 'SET_PAY'; payload: { month?: dayjs.Dayjs | null; subId?: string } }
+  | { type: 'RESET_PAYMENT' }
+  | { type: 'SET_TICKET'; payload: { tipo?: string; desc?: string } }
+  | { type: 'RESET_TICKET' }
+  | { type: 'SET_PROMO'; payload: { promoId?: string; subId?: string } }
+  | { type: 'SET_EQUIP_ID'; payload: string }
+  | { type: 'SET_EQUIP_OPTIONS'; payload: any[] }
+  | { type: 'SET_EQUIP_SEARCHING'; payload: boolean }
+  | { type: 'START_FISCAL_EDIT'; payload: Record<string, string> }
+  | { type: 'UPDATE_FISCAL_FIELD'; payload: { field: string; value: string } }
+  | { type: 'SET_FISCAL_SAVING'; payload: boolean }
+  | { type: 'CANCEL_FISCAL_EDIT' };
+
+function drawerReducer(state: DrawerUIState, action: DrawerAction): DrawerUIState {
+  switch (action.type) {
+    case 'SET_TAB':
+      return { ...state, activeTab: action.payload };
+    case 'SET_NOTE_TEXT':
+      return { ...state, noteText: action.payload };
+    case 'SET_PAY':
+      return {
+        ...state,
+        payMonth: action.payload.month !== undefined ? action.payload.month : state.payMonth,
+        paySubId: action.payload.subId !== undefined ? action.payload.subId : state.paySubId,
+      };
+    case 'RESET_PAYMENT':
+      return { ...state, payMonth: null, paySubId: '' };
+    case 'SET_TICKET':
+      return {
+        ...state,
+        newTicketTipo: action.payload.tipo !== undefined ? action.payload.tipo : state.newTicketTipo,
+        newTicketDesc: action.payload.desc !== undefined ? action.payload.desc : state.newTicketDesc,
+      };
+    case 'RESET_TICKET':
+      return { ...state, newTicketTipo: '', newTicketDesc: '' };
+    case 'SET_PROMO':
+      return {
+        ...state,
+        selectedPromoId: action.payload.promoId !== undefined ? action.payload.promoId : state.selectedPromoId,
+        selectedPromoSubId: action.payload.subId !== undefined ? action.payload.subId : state.selectedPromoSubId,
+      };
+    case 'SET_EQUIP_ID':
+      return { ...state, selectedEquipId: action.payload };
+    case 'SET_EQUIP_OPTIONS':
+      return { ...state, equipOptions: action.payload };
+    case 'SET_EQUIP_SEARCHING':
+      return { ...state, equipSearching: action.payload };
+    case 'START_FISCAL_EDIT':
+      return { ...state, fiscalEditing: true, fiscalForm: action.payload };
+    case 'UPDATE_FISCAL_FIELD':
+      return { ...state, fiscalForm: { ...state.fiscalForm, [action.payload.field]: action.payload.value } };
+    case 'SET_FISCAL_SAVING':
+      return { ...state, fiscalSaving: action.payload };
+    case 'CANCEL_FISCAL_EDIT':
+      return { ...state, fiscalEditing: false, fiscalForm: {} };
+    default:
+      return state;
+  }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────
+
 export default function ClientDetail({ data, onRefresh }: { data: ClientDetailResult; onRefresh: () => void }) {
   const { nombreNormalizado, nombreOriginal, codCli, estado, fechaAlta, calle, requiereCorte, subscriptions, documents } = data;
   const { hasRole } = useAuth();
@@ -40,73 +142,214 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
   const isAdmin = hasRole('ADMIN');
   const d = data;
   const activeSubs = subscriptions.filter((s: any) => s.tipo);
+  const queryClient = useQueryClient();
 
-  // State
-  const [notes, setNotes] = useState<ClientNote[]>([]);
-  const [history, setHistory] = useState<AuditLogEntry[]>([]);
-  const [promos, setPromos] = useState<any[]>([]);
-  const [availablePromos, setAvailablePromos] = useState<any[]>([]);
-  const [clientEquipment, setClientEquipment] = useState<any[]>([]);
-  const [clientTickets, setClientTickets] = useState<any[]>([]);
-  const [lastWhatsApp, setLastWhatsApp] = useState<{ sentAt: string; sentBy: string } | null>(null);
+  const [state, dispatch] = useReducer(drawerReducer, initialState);
 
-  const [noteText, setNoteText] = useState('');
-  const [payMonth, setPayMonth] = useState<dayjs.Dayjs | null>(null);
-  const [paySubId, setPaySubId] = useState('');
-  const [newTicketTipo, setNewTicketTipo] = useState('');
-  const [newTicketDesc, setNewTicketDesc] = useState('');
-  const [selectedPromoId, setSelectedPromoId] = useState('');
-  const [selectedPromoSubId, setSelectedPromoSubId] = useState('');
-  const [equipOptions, setEquipOptions] = useState<any[]>([]);
-  const [equipSearching, setEquipSearching] = useState(false);
-  const [selectedEquipId, setSelectedEquipId] = useState('');
-  const [fiscalEditing, setFiscalEditing] = useState(false);
-  const [fiscalSaving, setFiscalSaving] = useState(false);
-  const [fiscalForm, setFiscalForm] = useState<Record<string, string>>({});
+  // ── React Query: tab data ─────────────────────────────────────────────
 
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [promosLoading, setPromosLoading] = useState(false);
-  const [equipLoading, setEquipLoading] = useState(false);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const { data: notes = [], isLoading: notesLoading } = useQuery({
+    queryKey: ['clientNotes', data.clientId],
+    queryFn: () => clientsApi.getNotes(data.clientId),
+    enabled: state.activeTab === 'notas',
+  });
 
-  useEffect(() => { clientsApi.getLastWhatsApp(data.clientId).then(setLastWhatsApp).catch(() => {}); }, [data.clientId]);
+  const { data: history = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['clientHistory', data.clientId],
+    queryFn: () => clientsApi.getHistory(data.clientId),
+    enabled: state.activeTab === 'historial',
+  });
 
-  // Loaders
-  const loadNotes = async () => { setNotesLoading(true); try { setNotes(await clientsApi.getNotes(data.clientId)); } catch { /* */ } finally { setNotesLoading(false); } };
-  const loadHistory = async () => { setHistoryLoading(true); try { setHistory(await clientsApi.getHistory(data.clientId)); } catch { /* */ } finally { setHistoryLoading(false); } };
-  const loadPromos = async () => {
-    setPromosLoading(true);
-    try { const [a, all] = await Promise.all([promotionsApi.getClientPromos(data.clientId), promotionsApi.getAll({ scope: 'CLIENTE', activa: 'true' })]); setPromos(a); setAvailablePromos(all); }
-    catch { /* */ } finally { setPromosLoading(false); }
+  const { data: promosData, isLoading: promosLoading } = useQuery({
+    queryKey: ['clientPromos', data.clientId],
+    queryFn: async () => {
+      const [assigned, all] = await Promise.all([
+        promotionsApi.getClientPromos(data.clientId),
+        promotionsApi.getAll({ scope: 'CLIENTE', activa: 'true' }),
+      ]);
+      return { promos: assigned, availablePromos: all };
+    },
+    enabled: state.activeTab === 'promos',
+  });
+  const promos = promosData?.promos ?? [];
+  const availablePromos = promosData?.availablePromos ?? [];
+
+  const { data: clientEquipment = [], isLoading: equipLoading } = useQuery({
+    queryKey: ['clientEquipment', data.clientId],
+    queryFn: () => equipmentApi.getClientEquipment(data.clientId),
+    enabled: state.activeTab === 'equipos',
+  });
+
+  const { data: clientTickets = [], isLoading: ticketsLoading } = useQuery({
+    queryKey: ['clientTickets', data.clientId],
+    queryFn: () => ticketsApi.getClientTickets(data.clientId),
+    enabled: state.activeTab === 'tickets',
+  });
+
+  const { data: lastWhatsApp = null } = useQuery({
+    queryKey: ['clientWhatsApp', data.clientId],
+    queryFn: () => clientsApi.getLastWhatsApp(data.clientId).catch(() => null),
+  });
+
+  // ── Mutations ─────────────────────────────────────────────────────────
+
+  const invalidateClient = () => {
+    onRefresh();
   };
-  const loadEquipment = async () => { setEquipLoading(true); try { setClientEquipment(await equipmentApi.getClientEquipment(data.clientId)); } catch { /* */ } finally { setEquipLoading(false); } };
-  const loadTickets = async () => { setTicketsLoading(true); try { setClientTickets(await ticketsApi.getClientTickets(data.clientId)); } catch { /* */ } finally { setTicketsLoading(false); } };
 
-  // Handlers
-  const handlePayment = async () => {
-    if (!payMonth || !paySubId) return;
-    try { await clientsApi.createPayment(data.clientId, paySubId, payMonth.year(), payMonth.month() + 1); message.success('Pago registrado'); setPayMonth(null); onRefresh(); }
-    catch (err) { message.error(getErrorMessage(err)); }
+  const paymentMutation = useMutation({
+    mutationFn: () => clientsApi.createPayment(data.clientId, state.paySubId, state.payMonth!.year(), state.payMonth!.month() + 1),
+    onSuccess: () => {
+      message.success('Pago registrado');
+      dispatch({ type: 'RESET_PAYMENT' });
+      invalidateClient();
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: () => clientsApi.deactivate(data.clientId),
+    onSuccess: () => { message.success('Dado de baja'); invalidateClient(); },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: () => clientsApi.reactivate(data.clientId),
+    onSuccess: () => { message.success('Reactivado'); invalidateClient(); },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const deactivateSubMutation = useMutation({
+    mutationFn: (subId: string) => clientsApi.deactivateSub(data.clientId, subId),
+    onSuccess: () => { message.success('Cancelado'); invalidateClient(); },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: (content: string) => clientsApi.createNote(data.clientId, content),
+    onSuccess: () => {
+      dispatch({ type: 'SET_NOTE_TEXT', payload: '' });
+      message.success('Agregada');
+      queryClient.invalidateQueries({ queryKey: ['clientNotes', data.clientId] });
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) => clientsApi.deleteNote(data.clientId, noteId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clientNotes', data.clientId] }),
+    onError: () => message.error('Error'),
+  });
+
+  const logWhatsAppMutation = useMutation({
+    mutationFn: () => clientsApi.logWhatsApp(data.clientId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clientWhatsApp', data.clientId] }),
+  });
+
+  const assignPromoMutation = useMutation({
+    mutationFn: () => promotionsApi.assignToSub(data.clientId, state.selectedPromoSubId, state.selectedPromoId),
+    onSuccess: () => {
+      message.success('Asignada');
+      dispatch({ type: 'SET_PROMO', payload: { promoId: '', subId: '' } });
+      queryClient.invalidateQueries({ queryKey: ['clientPromos', data.clientId] });
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const removePromoMutation = useMutation({
+    mutationFn: ({ subId, promoId }: { subId: string; promoId: string }) => promotionsApi.removeFromSub(data.clientId, subId, promoId),
+    onSuccess: () => {
+      message.success('Removida');
+      queryClient.invalidateQueries({ queryKey: ['clientPromos', data.clientId] });
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const assignEquipMutation = useMutation({
+    mutationFn: () => equipmentApi.assign(data.clientId, state.selectedEquipId),
+    onSuccess: () => {
+      message.success('Asignado');
+      dispatch({ type: 'SET_EQUIP_ID', payload: '' });
+      dispatch({ type: 'SET_EQUIP_OPTIONS', payload: [] });
+      queryClient.invalidateQueries({ queryKey: ['clientEquipment', data.clientId] });
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const retireEquipMutation = useMutation({
+    mutationFn: (assignmentId: string) => equipmentApi.retire(data.clientId, assignmentId),
+    onSuccess: () => {
+      message.success('Retirado');
+      queryClient.invalidateQueries({ queryKey: ['clientEquipment', data.clientId] });
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const createTicketMutation = useMutation({
+    mutationFn: () => ticketsApi.create(data.clientId, state.newTicketTipo, state.newTicketDesc || undefined),
+    onSuccess: () => {
+      message.success('Creado');
+      dispatch({ type: 'RESET_TICKET' });
+      queryClient.invalidateQueries({ queryKey: ['clientTickets', data.clientId] });
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const saveFiscalMutation = useMutation({
+    mutationFn: () => fiscalApi.updateClientFiscal(data.clientId, state.fiscalForm),
+    onSuccess: () => {
+      message.success('Datos actualizados');
+      dispatch({ type: 'CANCEL_FISCAL_EDIT' });
+      invalidateClient();
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  const updateComprobanteMutation = useMutation({
+    mutationFn: (tipoComprobante: string) => clientsApi.updateComprobanteConfig(data.clientId, { tipoComprobante }),
+    onSuccess: (_, tipoComprobante) => {
+      message.success(`Comprobante: ${tipoComprobante}`);
+      invalidateClient();
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  });
+
+  // ── Handlers ──────────────────────────────────────────────────────────
+
+  const handlePayment = () => {
+    if (!state.payMonth || !state.paySubId) return;
+    paymentMutation.mutate();
   };
 
   const handleWhatsApp = async () => {
     const msg = generarMensajeDeuda({ nombre: nombreNormalizado, deudaCable: data.deudaCable, deudaInternet: data.deudaInternet, cantidadDeuda: data.cantidadDeuda });
     window.open(generarLinkWhatsApp(d.telefono!, msg), '_blank');
-    try { await clientsApi.logWhatsApp(data.clientId); setLastWhatsApp({ sentAt: new Date().toISOString(), sentBy: 'Vos' }); } catch { /* */ }
+    logWhatsAppMutation.mutate();
   };
 
   const startFiscalEdit = () => {
-    setFiscalForm({ tipoDocumento: d.tipoDocumento || '', numeroDocumento: d.numeroDocFiscal || '', condicionFiscal: d.condicionFiscal || 'CONSUMIDOR_FINAL', razonSocial: d.razonSocial || '', telefono: d.telefono || '', email: d.email || '' });
-    setFiscalEditing(true);
-  };
-  const saveFiscal = async () => {
-    setFiscalSaving(true);
-    try { await fiscalApi.updateClientFiscal(data.clientId, fiscalForm); message.success('Datos actualizados'); setFiscalEditing(false); onRefresh(); }
-    catch (err) { message.error(getErrorMessage(err)); } finally { setFiscalSaving(false); }
+    dispatch({
+      type: 'START_FISCAL_EDIT',
+      payload: {
+        tipoDocumento: d.tipoDocumento || '',
+        numeroDocumento: d.numeroDocFiscal || '',
+        condicionFiscal: d.condicionFiscal || 'CONSUMIDOR_FINAL',
+        razonSocial: d.razonSocial || '',
+        telefono: d.telefono || '',
+        email: d.email || '',
+      },
+    });
   };
 
-  const searchEquip = async (s: string) => { if (!s || s.length < 2) return; setEquipSearching(true); try { const r = await equipmentApi.getAll({ estado: 'EN_DEPOSITO', search: s }); setEquipOptions((r.data || r).slice(0, 20)); } catch { /* */ } finally { setEquipSearching(false); } };
+  const searchEquip = async (s: string) => {
+    if (!s || s.length < 2) return;
+    dispatch({ type: 'SET_EQUIP_SEARCHING', payload: true });
+    try {
+      const r = await equipmentApi.getAll({ estado: 'EN_DEPOSITO', search: s });
+      dispatch({ type: 'SET_EQUIP_OPTIONS', payload: (r.data || r).slice(0, 20) });
+    } catch { /* */ }
+    finally { dispatch({ type: 'SET_EQUIP_SEARCHING', payload: false }); }
+  };
 
   return (
     <div>
@@ -114,45 +357,39 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
       <Space style={{ marginBottom: 12 }} wrap>
         {canOperate && estado === 'ACTIVO' && (
           <Button danger icon={<StopOutlined />} size="small" onClick={() => Modal.confirm({
-            title: `Confirmar baja de ${nombreNormalizado}`, content: 'Se darán de baja todos sus servicios.', okText: 'Dar de baja', okType: 'danger',
-            onOk: async () => { await clientsApi.deactivate(data.clientId); message.success('Dado de baja'); onRefresh(); },
+            title: `Confirmar baja de ${nombreNormalizado}`, content: 'Se daran de baja todos sus servicios.', okText: 'Dar de baja', okType: 'danger',
+            onOk: () => deactivateMutation.mutateAsync(),
           })}>Dar de baja</Button>
         )}
-        {isAdmin && estado === 'BAJA' && <Button type="primary" icon={<PlayCircleOutlined />} size="small" onClick={async () => { await clientsApi.reactivate(data.clientId); message.success('Reactivado'); onRefresh(); }}>Reactivar</Button>}
+        {isAdmin && estado === 'BAJA' && <Button type="primary" icon={<PlayCircleOutlined />} size="small" onClick={() => reactivateMutation.mutate()}>Reactivar</Button>}
         {d.telefono && data.cantidadDeuda > 0 && (
           <Space direction="vertical" size={0}>
             <Button icon={<WhatsAppOutlined />} size="small" style={{ color: '#25D366' }} onClick={handleWhatsApp}>WhatsApp</Button>
-            {lastWhatsApp && <Typography.Text type="secondary" style={{ fontSize: 10 }}>Último: {dayjs(lastWhatsApp.sentAt).fromNow()}</Typography.Text>}
+            {lastWhatsApp && <Typography.Text type="secondary" style={{ fontSize: 10 }}>Ultimo: {dayjs(lastWhatsApp.sentAt).fromNow()}</Typography.Text>}
           </Space>
         )}
       </Space>
 
       {/* Info + Estado */}
       <Descriptions bordered size="small" column={1}>
-        <Descriptions.Item label="Código">{codCli}</Descriptions.Item>
+        <Descriptions.Item label="Codigo">{codCli}</Descriptions.Item>
         <Descriptions.Item label="Nombre">{nombreNormalizado}</Descriptions.Item>
         {nombreOriginal !== nombreNormalizado && <Descriptions.Item label="Original"><Typography.Text type="secondary">{nombreOriginal}</Typography.Text></Descriptions.Item>}
         <Descriptions.Item label="Estado"><Tag color={estado === 'ACTIVO' ? 'blue' : 'default'}>{estado}</Tag> {requiereCorte && <Tag color="red" icon={<WarningOutlined />}>CORTE</Tag>}</Descriptions.Item>
-        <Descriptions.Item label="Alta">{fechaAlta ? new Date(fechaAlta).toLocaleDateString('es-AR') : '—'}</Descriptions.Item>
-        <Descriptions.Item label="Dirección">{calle || '—'}{d.zona ? ` · ${d.zona}` : ''}</Descriptions.Item>
+        <Descriptions.Item label="Alta">{fechaAlta ? new Date(fechaAlta).toLocaleDateString('es-AR') : '\u2014'}</Descriptions.Item>
+        <Descriptions.Item label="Direccion">{calle || '\u2014'}{d.zona ? ` \u00B7 ${d.zona}` : ''}</Descriptions.Item>
       </Descriptions>
 
       {/* Tabs */}
-      <Tabs style={{ marginTop: 16 }} size="small" defaultActiveKey="servicios" onChange={(key) => {
-        if (key === 'notas' && notes.length === 0) loadNotes();
-        if (key === 'historial' && history.length === 0) loadHistory();
-        if (key === 'promos' && promos.length === 0) loadPromos();
-        if (key === 'equipos' && clientEquipment.length === 0) loadEquipment();
-        if (key === 'tickets' && clientTickets.length === 0) loadTickets();
-      }} items={[
-        // ── Servicios ──
-        { key: 'servicios', label: '📊 Deuda', children: (
+      <Tabs style={{ marginTop: 16 }} size="small" activeKey={state.activeTab} onChange={(key) => dispatch({ type: 'SET_TAB', payload: key })} items={[
+        // -- Servicios --
+        { key: 'servicios', label: '\uD83D\uDCCA Deuda', children: (
           <div>
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
               {subscriptions.map((sub: any) => (
                 <Card key={sub.subscriptionId} size="small" style={{ flex: 1, minWidth: 0, border: sub.requiereCorte ? '1px solid #ff4d4f' : undefined }}
-                  title={<Space size={4}>{sub.tipo === 'CABLE' ? '📺' : '🌐'} {sub.tipo} {sub.requiereCorte && <Tag color="red" style={{ margin: 0, fontSize: 10 }}>CORTE</Tag>}</Space>}
-                  extra={canOperate && estado === 'ACTIVO' && <Button type="link" danger size="small" onClick={() => Modal.confirm({ title: `Cancelar ${sub.tipo}?`, okText: 'Sí', okType: 'danger', onOk: async () => { await clientsApi.deactivateSub(data.clientId, sub.subscriptionId); message.success('Cancelado'); onRefresh(); } })}>Cancelar</Button>}>
+                  title={<Space size={4}>{sub.tipo === 'CABLE' ? '\uD83D\uDCFA' : '\uD83C\uDF10'} {sub.tipo} {sub.requiereCorte && <Tag color="red" style={{ margin: 0, fontSize: 10 }}>CORTE</Tag>}</Space>}
+                  extra={canOperate && estado === 'ACTIVO' && <Button type="link" danger size="small" onClick={() => Modal.confirm({ title: `Cancelar ${sub.tipo}?`, okText: 'Si', okType: 'danger', onOk: () => deactivateSubMutation.mutateAsync(sub.subscriptionId) })}>Cancelar</Button>}>
                   <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
                     <div style={{ textAlign: 'center' }}><div style={{ fontSize: 24, fontWeight: 700, color: sub.cantidadDeuda > 0 ? '#f5222d' : '#52c41a' }}>{sub.cantidadDeuda}</div><div style={{ color: '#888', fontSize: 11 }}>deuda</div></div>
                     <div style={{ textAlign: 'center' }}><div style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>{sub.mesesPagados.length}</div><div style={{ color: '#888', fontSize: 11 }}>pagados</div></div>
@@ -172,75 +409,67 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
               <>
                 <Divider orientation="left" style={{ fontSize: 12 }}>Registrar pago</Divider>
                 <Space>
-                  <Select placeholder="Servicio" size="small" style={{ width: 130 }} value={paySubId || undefined} onChange={setPaySubId} options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
-                  <DatePicker picker="month" size="small" value={payMonth} onChange={setPayMonth} disabledDate={(dd) => dd.isAfter(dayjs())} format="MMM YYYY" placeholder="Mes" />
-                  <Button type="primary" size="small" onClick={handlePayment} disabled={!payMonth || !paySubId}>Registrar</Button>
+                  <Select placeholder="Servicio" size="small" style={{ width: 130 }} value={state.paySubId || undefined} onChange={(v) => dispatch({ type: 'SET_PAY', payload: { subId: v } })} options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
+                  <DatePicker picker="month" size="small" value={state.payMonth} onChange={(v) => dispatch({ type: 'SET_PAY', payload: { month: v } })} disabledDate={(dd) => dd.isAfter(dayjs())} format="MMM YYYY" placeholder="Mes" />
+                  <Button type="primary" size="small" onClick={handlePayment} disabled={!state.payMonth || !state.paySubId} loading={paymentMutation.isPending}>Registrar</Button>
                 </Space>
               </>
             )}
           </div>
         )},
 
-        // ── Fiscal ──
+        // -- Fiscal --
         { key: 'fiscal', label: <><IdcardOutlined /> Fiscal</>, children: (
           <div>
-            {canOperate && !fiscalEditing && <Button size="small" onClick={startFiscalEdit} style={{ marginBottom: 8 }}>Editar</Button>}
-            {!fiscalEditing ? (
+            {canOperate && !state.fiscalEditing && <Button size="small" onClick={startFiscalEdit} style={{ marginBottom: 8 }}>Editar</Button>}
+            {!state.fiscalEditing ? (
               <Descriptions bordered size="small" column={1}>
-                <Descriptions.Item label="Tipo Doc">{d.tipoDocumento || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Nro Doc">{d.numeroDocFiscal || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Condición">{d.condicionFiscal || 'CONSUMIDOR_FINAL'}</Descriptions.Item>
-                <Descriptions.Item label="Razón Social">{d.razonSocial || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Teléfono">{d.telefono || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Email">{d.email || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Zona">{d.zona || '—'}</Descriptions.Item>
+                <Descriptions.Item label="Tipo Doc">{d.tipoDocumento || '\u2014'}</Descriptions.Item>
+                <Descriptions.Item label="Nro Doc">{d.numeroDocFiscal || '\u2014'}</Descriptions.Item>
+                <Descriptions.Item label="Condicion">{d.condicionFiscal || 'CONSUMIDOR_FINAL'}</Descriptions.Item>
+                <Descriptions.Item label="Razon Social">{d.razonSocial || '\u2014'}</Descriptions.Item>
+                <Descriptions.Item label="Telefono">{d.telefono || '\u2014'}</Descriptions.Item>
+                <Descriptions.Item label="Email">{d.email || '\u2014'}</Descriptions.Item>
+                <Descriptions.Item label="Zona">{d.zona || '\u2014'}</Descriptions.Item>
                 <Descriptions.Item label="Comprobante">
                   <Space>
                     <Tag color={d.tipoComprobante === 'FACTURA' ? 'blue' : 'default'}>{d.tipoComprobante || 'RAMITO'}</Tag>
                     {canOperate && (
                       <Switch size="small" checked={d.tipoComprobante === 'FACTURA'}
                         checkedChildren="Factura" unCheckedChildren="Ramito"
-                        onChange={async (checked) => {
-                          try {
-                            await clientsApi.updateComprobanteConfig(data.clientId, { tipoComprobante: checked ? 'FACTURA' : 'RAMITO' });
-                            message.success(`Comprobante: ${checked ? 'FACTURA' : 'RAMITO'}`);
-                            onRefresh();
-                          } catch (err) { message.error(getErrorMessage(err)); }
-                        }} />
+                        onChange={(checked) => updateComprobanteMutation.mutate(checked ? 'FACTURA' : 'RAMITO')} />
                     )}
                   </Space>
                 </Descriptions.Item>
               </Descriptions>
             ) : (
               <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                <Select style={{ width: '100%' }} value={fiscalForm.tipoDocumento || undefined} onChange={(v) => setFiscalForm({ ...fiscalForm, tipoDocumento: v })} placeholder="Tipo doc" allowClear options={[{ value: 'CUIT', label: 'CUIT' }, { value: 'CUIL', label: 'CUIL' }, { value: 'DNI', label: 'DNI' }, { value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' }]} />
-                <Input size="small" value={fiscalForm.numeroDocumento} onChange={(e) => setFiscalForm({ ...fiscalForm, numeroDocumento: e.target.value })} placeholder="Nro documento" />
-                <Select style={{ width: '100%' }} value={fiscalForm.condicionFiscal} onChange={(v) => setFiscalForm({ ...fiscalForm, condicionFiscal: v })} options={[{ value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' }, { value: 'MONOTRIBUTISTA', label: 'Monotributista' }, { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable Inscripto' }, { value: 'EXENTO', label: 'Exento' }]} />
-                <Input size="small" value={fiscalForm.razonSocial} onChange={(e) => setFiscalForm({ ...fiscalForm, razonSocial: e.target.value })} placeholder="Razón social" />
-                <Input size="small" value={fiscalForm.telefono} onChange={(e) => setFiscalForm({ ...fiscalForm, telefono: e.target.value })} placeholder="Teléfono" />
-                <Input size="small" value={fiscalForm.email} onChange={(e) => setFiscalForm({ ...fiscalForm, email: e.target.value })} placeholder="Email" />
-                <Space><Button type="primary" size="small" onClick={saveFiscal} loading={fiscalSaving}>Guardar</Button><Button size="small" onClick={() => setFiscalEditing(false)}>Cancelar</Button></Space>
+                <Select style={{ width: '100%' }} value={state.fiscalForm.tipoDocumento || undefined} onChange={(v) => dispatch({ type: 'UPDATE_FISCAL_FIELD', payload: { field: 'tipoDocumento', value: v } })} placeholder="Tipo doc" allowClear options={[{ value: 'CUIT', label: 'CUIT' }, { value: 'CUIL', label: 'CUIL' }, { value: 'DNI', label: 'DNI' }, { value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' }]} />
+                <Input size="small" value={state.fiscalForm.numeroDocumento} onChange={(e) => dispatch({ type: 'UPDATE_FISCAL_FIELD', payload: { field: 'numeroDocumento', value: e.target.value } })} placeholder="Nro documento" />
+                <Select style={{ width: '100%' }} value={state.fiscalForm.condicionFiscal} onChange={(v) => dispatch({ type: 'UPDATE_FISCAL_FIELD', payload: { field: 'condicionFiscal', value: v } })} options={[{ value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' }, { value: 'MONOTRIBUTISTA', label: 'Monotributista' }, { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable Inscripto' }, { value: 'EXENTO', label: 'Exento' }]} />
+                <Input size="small" value={state.fiscalForm.razonSocial} onChange={(e) => dispatch({ type: 'UPDATE_FISCAL_FIELD', payload: { field: 'razonSocial', value: e.target.value } })} placeholder="Razon social" />
+                <Input size="small" value={state.fiscalForm.telefono} onChange={(e) => dispatch({ type: 'UPDATE_FISCAL_FIELD', payload: { field: 'telefono', value: e.target.value } })} placeholder="Telefono" />
+                <Input size="small" value={state.fiscalForm.email} onChange={(e) => dispatch({ type: 'UPDATE_FISCAL_FIELD', payload: { field: 'email', value: e.target.value } })} placeholder="Email" />
+                <Space><Button type="primary" size="small" onClick={() => saveFiscalMutation.mutate()} loading={saveFiscalMutation.isPending}>Guardar</Button><Button size="small" onClick={() => dispatch({ type: 'CANCEL_FISCAL_EDIT' })}>Cancelar</Button></Space>
               </Space>
             )}
           </div>
         )},
 
-        // ── Equipos ──
+        // -- Equipos --
         { key: 'equipos', label: <><ToolOutlined /> Equipos</>, children: (
           <Spin spinning={equipLoading}>
             {canOperate && estado === 'ACTIVO' && (
               <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
-                <Select showSearch placeholder="Buscar equipo..." filterOption={false} onSearch={searchEquip} loading={equipSearching} style={{ flex: 1 }} size="small"
-                  value={selectedEquipId || undefined} onChange={setSelectedEquipId} notFoundContent={equipSearching ? <Spin size="small" /> : 'Escribí para buscar'}>
-                  {equipOptions.map((eq: any) => <Select.Option key={eq.id} value={eq.id}>{eq.tipo} {eq.marca && `${eq.marca}`} {eq.numeroSerie && `[${eq.numeroSerie}]`}</Select.Option>)}
+                <Select showSearch placeholder="Buscar equipo..." filterOption={false} onSearch={searchEquip} loading={state.equipSearching} style={{ flex: 1 }} size="small"
+                  value={state.selectedEquipId || undefined} onChange={(v) => dispatch({ type: 'SET_EQUIP_ID', payload: v })} notFoundContent={state.equipSearching ? <Spin size="small" /> : 'Escribi para buscar'}>
+                  {state.equipOptions.map((eq: any) => <Select.Option key={eq.id} value={eq.id}>{eq.tipo} {eq.marca && `${eq.marca}`} {eq.numeroSerie && `[${eq.numeroSerie}]`}</Select.Option>)}
                 </Select>
-                <Button type="primary" size="small" disabled={!selectedEquipId} onClick={async () => {
-                  try { await equipmentApi.assign(data.clientId, selectedEquipId); message.success('Asignado'); setSelectedEquipId(''); setEquipOptions([]); loadEquipment(); } catch (err) { message.error(getErrorMessage(err)); }
-                }}>Asignar</Button>
+                <Button type="primary" size="small" disabled={!state.selectedEquipId} loading={assignEquipMutation.isPending} onClick={() => assignEquipMutation.mutate()}>Asignar</Button>
               </Space.Compact>
             )}
             {clientEquipment.length > 0 ? <List size="small" dataSource={clientEquipment} renderItem={(eq: any) => (
-              <List.Item actions={canOperate && !eq.fechaRetiro ? [<Button size="small" type="link" danger onClick={() => Modal.confirm({ title: '¿Retirar este equipo?', okText: 'Retirar', okType: 'danger', onOk: async () => { try { await equipmentApi.retire(data.clientId, eq.id); message.success('Retirado'); loadEquipment(); } catch (err) { message.error(getErrorMessage(err)); } } })}>Retirar</Button>] : undefined}>
+              <List.Item actions={canOperate && !eq.fechaRetiro ? [<Button size="small" type="link" danger onClick={() => Modal.confirm({ title: 'Retirar este equipo?', okText: 'Retirar', okType: 'danger', onOk: () => retireEquipMutation.mutateAsync(eq.id) })}>Retirar</Button>] : undefined}>
                 <List.Item.Meta title={<Space size={4}>{eq.equipment?.tipo} <Tag color={eq.fechaRetiro ? 'default' : 'blue'}>{eq.fechaRetiro ? 'Retirado' : 'Instalado'}</Tag></Space>}
                   description={<>{[eq.equipment?.marca, eq.equipment?.modelo].filter(Boolean).join(' ') || ''} {eq.equipment?.numeroSerie && <Typography.Text code style={{ fontSize: 11 }}>{eq.equipment.numeroSerie}</Typography.Text>}</>} />
               </List.Item>
@@ -248,79 +477,74 @@ export default function ClientDetail({ data, onRefresh }: { data: ClientDetailRe
           </Spin>
         )},
 
-        // ── Tickets ──
+        // -- Tickets --
         { key: 'tickets', label: <><ExclamationCircleOutlined /> Tickets</>, children: (
           <Spin spinning={ticketsLoading}>
             {canOperate && estado === 'ACTIVO' && (
               <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
-                <Select placeholder="Tipo" size="small" style={{ width: 150 }} value={newTicketTipo || undefined} onChange={setNewTicketTipo}
-                  options={[{ value: 'SIN_SENIAL', label: 'Sin señal' }, { value: 'LENTITUD_INTERNET', label: 'Lentitud' }, { value: 'RECONEXION', label: 'Reconexión' }, { value: 'INSTALACION', label: 'Instalación' }, { value: 'CAMBIO_EQUIPO', label: 'Cambio equipo' }, { value: 'OTRO', label: 'Otro' }]} />
-                <Input size="small" placeholder="Descripción" value={newTicketDesc} onChange={(e) => setNewTicketDesc(e.target.value)} />
-                <Button type="primary" size="small" disabled={!newTicketTipo} onClick={async () => {
-                  try { await ticketsApi.create(data.clientId, newTicketTipo, newTicketDesc || undefined); message.success('Creado'); setNewTicketTipo(''); setNewTicketDesc(''); loadTickets(); } catch (err) { message.error(getErrorMessage(err)); }
-                }}>Crear</Button>
+                <Select placeholder="Tipo" size="small" style={{ width: 150 }} value={state.newTicketTipo || undefined} onChange={(v) => dispatch({ type: 'SET_TICKET', payload: { tipo: v } })}
+                  options={[{ value: 'SIN_SENIAL', label: 'Sin senal' }, { value: 'LENTITUD_INTERNET', label: 'Lentitud' }, { value: 'RECONEXION', label: 'Reconexion' }, { value: 'INSTALACION', label: 'Instalacion' }, { value: 'CAMBIO_EQUIPO', label: 'Cambio equipo' }, { value: 'OTRO', label: 'Otro' }]} />
+                <Input size="small" placeholder="Descripcion" value={state.newTicketDesc} onChange={(e) => dispatch({ type: 'SET_TICKET', payload: { desc: e.target.value } })} />
+                <Button type="primary" size="small" disabled={!state.newTicketTipo} loading={createTicketMutation.isPending} onClick={() => createTicketMutation.mutate()}>Crear</Button>
               </Space.Compact>
             )}
             {clientTickets.length > 0 ? <List size="small" dataSource={clientTickets} renderItem={(t: any) => (
-              <List.Item><Space size={4}><Tag color={t.estado === 'ABIERTO' ? 'red' : 'green'}>{t.estado}</Tag><Tag>{t.tipo.replace(/_/g, ' ')}</Tag><span style={{ fontSize: 12 }}>{t.descripcion || '—'}</span><Typography.Text type="secondary" style={{ fontSize: 11 }}>{dayjs(t.createdAt).fromNow()}</Typography.Text></Space></List.Item>
+              <List.Item><Space size={4}><Tag color={t.estado === 'ABIERTO' ? 'red' : 'green'}>{t.estado}</Tag><Tag>{t.tipo.replace(/_/g, ' ')}</Tag><span style={{ fontSize: 12 }}>{t.descripcion || '\u2014'}</span><Typography.Text type="secondary" style={{ fontSize: 11 }}>{dayjs(t.createdAt).fromNow()}</Typography.Text></Space></List.Item>
             )} /> : !ticketsLoading && <Typography.Text type="secondary">Sin tickets.</Typography.Text>}
           </Spin>
         )},
 
-        // ── Notas ──
+        // -- Notas --
         { key: 'notas', label: <><MessageOutlined /> Notas</>, children: (
           <Spin spinning={notesLoading}>
             {canOperate && (
               <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
-                <Input.TextArea rows={2} maxLength={1000} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Agregar nota..." />
-                <Button type="primary" onClick={async () => { if (!noteText.trim()) return; try { await clientsApi.createNote(data.clientId, noteText.trim()); setNoteText(''); message.success('Agregada'); loadNotes(); } catch (err) { message.error(getErrorMessage(err)); } }} disabled={!noteText.trim()}>Agregar</Button>
+                <Input.TextArea rows={2} maxLength={1000} value={state.noteText} onChange={(e) => dispatch({ type: 'SET_NOTE_TEXT', payload: e.target.value })} placeholder="Agregar nota..." />
+                <Button type="primary" onClick={() => { if (!state.noteText.trim()) return; createNoteMutation.mutate(state.noteText.trim()); }} disabled={!state.noteText.trim()} loading={createNoteMutation.isPending}>Agregar</Button>
               </Space.Compact>
             )}
-            {notes.length > 0 ? notes.map((n) => (
+            {notes.length > 0 ? (notes as ClientNote[]).map((n) => (
               <div key={n.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <Space size={4}><Typography.Text strong style={{ fontSize: 12 }}>{n.user.name}</Typography.Text><Typography.Text type="secondary" style={{ fontSize: 11 }}>{dayjs(n.createdAt).fromNow()}</Typography.Text>
-                  {isAdmin && <Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label="Eliminar nota" onClick={() => Modal.confirm({ title: '¿Eliminar esta nota?', okText: 'Eliminar', okType: 'danger', onOk: async () => { try { await clientsApi.deleteNote(data.clientId, n.id); loadNotes(); } catch { message.error('Error'); } } })} />}</Space>
+                  {isAdmin && <Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label="Eliminar nota" onClick={() => Modal.confirm({ title: 'Eliminar esta nota?', okText: 'Eliminar', okType: 'danger', onOk: () => deleteNoteMutation.mutateAsync(n.id) })} />}</Space>
                 <div style={{ fontSize: 13 }}>{n.content}</div>
               </div>
             )) : !notesLoading && <Typography.Text type="secondary">Sin notas.</Typography.Text>}
           </Spin>
         )},
 
-        // ── Historial ──
+        // -- Historial --
         { key: 'historial', label: <><HistoryOutlined /> Historial</>, children: (
           <Spin spinning={historyLoading}>
-            {history.length > 0 ? <Timeline items={history.map((h) => ({ key: h.id, children: <div><Typography.Text strong style={{ fontSize: 12 }}>{ACTION_LABELS[h.action] || h.action}</Typography.Text><Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{h.user.name} — {dayjs(h.createdAt).fromNow()}</Typography.Text></div> }))} />
+            {(history as AuditLogEntry[]).length > 0 ? <Timeline items={(history as AuditLogEntry[]).map((h) => ({ key: h.id, children: <div><Typography.Text strong style={{ fontSize: 12 }}>{ACTION_LABELS[h.action] || h.action}</Typography.Text><Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{h.user.name} \u2014 {dayjs(h.createdAt).fromNow()}</Typography.Text></div> }))} />
               : !historyLoading && <Typography.Text type="secondary">Sin historial.</Typography.Text>}
           </Spin>
         )},
 
-        // ── Promociones ──
+        // -- Promociones --
         { key: 'promos', label: <><ThunderboltOutlined /> Promos</>, children: (
           <Spin spinning={promosLoading}>
             {canOperate && estado === 'ACTIVO' && activeSubs.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 {availablePromos.length > 0 ? (
                   <Space wrap size={4}>
-                    <Select placeholder="Suscripción" size="small" style={{ width: 120 }} value={selectedPromoSubId || undefined} onChange={setSelectedPromoSubId} options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
-                    <Select placeholder="Promoción" size="small" style={{ width: 220 }} value={selectedPromoId || undefined} onChange={setSelectedPromoId}
+                    <Select placeholder="Suscripcion" size="small" style={{ width: 120 }} value={state.selectedPromoSubId || undefined} onChange={(v) => dispatch({ type: 'SET_PROMO', payload: { subId: v } })} options={activeSubs.map((s: any) => ({ value: s.subscriptionId, label: s.tipo }))} />
+                    <Select placeholder="Promocion" size="small" style={{ width: 220 }} value={state.selectedPromoId || undefined} onChange={(v) => dispatch({ type: 'SET_PROMO', payload: { promoId: v } })}
                       options={availablePromos.map((p: any) => ({ value: p.id, label: `${p.nombre} (${p.tipo}${p.tipo === 'PORCENTAJE' ? ' ' + p.valor + '%' : p.tipo === 'MESES_GRATIS' ? '' : ' $' + p.valor})` }))} />
-                    <Button type="primary" size="small" disabled={!selectedPromoId || !selectedPromoSubId} onClick={async () => {
-                      try { await promotionsApi.assignToSub(data.clientId, selectedPromoSubId, selectedPromoId); message.success('Asignada'); setSelectedPromoId(''); setSelectedPromoSubId(''); loadPromos(); }
-                      catch (err) { message.error(getErrorMessage(err)); }
-                    }}>Asignar</Button>
+                    <Button type="primary" size="small" disabled={!state.selectedPromoId || !state.selectedPromoSubId} loading={assignPromoMutation.isPending} onClick={() => assignPromoMutation.mutate()}>Asignar</Button>
                   </Space>
                 ) : <Typography.Text type="secondary" style={{ fontSize: 12 }}>No hay promos CLIENTE activas.</Typography.Text>}
               </div>
             )}
             {promos.length > 0 ? <List size="small" dataSource={promos} renderItem={(p: any) => (
-              <List.Item actions={isAdmin ? [<Button type="link" danger size="small" onClick={() => Modal.confirm({ title: '¿Quitar esta promoción?', okText: 'Quitar', okType: 'danger', onOk: async () => { try { await promotionsApi.removeFromSub(data.clientId, p.subscriptionId, p.id); message.success('Removida'); loadPromos(); } catch (err) { message.error(getErrorMessage(err)); } } })}>Quitar</Button>] : undefined}>
+              <List.Item actions={isAdmin ? [<Button type="link" danger size="small" onClick={() => Modal.confirm({ title: 'Quitar esta promocion?', okText: 'Quitar', okType: 'danger', onOk: () => removePromoMutation.mutateAsync({ subId: p.subscriptionId, promoId: p.id }) })}>Quitar</Button>] : undefined}>
                 <Space size={4}><Tag color="purple">{p.promotion?.tipo || p.tipo}</Tag><span style={{ fontSize: 12 }}>{p.promotion?.nombre || p.nombre}</span></Space>
               </List.Item>
             )} /> : !promosLoading && <Typography.Text type="secondary">Sin promociones.</Typography.Text>}
           </Spin>
         )},
 
-        // ── Documentos ──
+        // -- Documentos --
         { key: 'docs', label: <><FileTextOutlined /> Docs ({data.docPagination.total})</>, children: (
           documents.length > 0 ? (
             <Timeline items={documents.map((doc) => ({

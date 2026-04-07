@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Layout, Menu, Tag, Button, Spin, Dropdown } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, UploadOutlined, FileTextOutlined,
@@ -6,6 +6,7 @@ import {
   ThunderboltOutlined, SettingOutlined, ToolOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ticketsApi } from './services/api';
 import { POLLING_INTERVALS } from './shared/constants';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -39,15 +40,15 @@ function AppLayout() {
   const location = useLocation();
   const { user, logout, hasRole } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [ticketsAbiertos, setTicketsAbiertos] = useState(0);
+  const canSeeTickets = hasRole('ADMIN', 'OPERADOR');
 
-  useEffect(() => {
-    if (!hasRole('ADMIN', 'OPERADOR')) return;
-    const load = () => ticketsApi.getStats().then((s: { abiertos?: number }) => setTicketsAbiertos(s.abiertos || 0)).catch(() => {});
-    load();
-    const interval = setInterval(load, POLLING_INTERVALS.TICKETS);
-    return () => clearInterval(interval);
-  }, [hasRole]);
+  const { data: ticketStats } = useQuery({
+    queryKey: ['ticketStats'],
+    queryFn: () => ticketsApi.getStats(),
+    refetchInterval: POLLING_INTERVALS.TICKETS,
+    enabled: canSeeTickets,
+  });
+  const ticketsAbiertos = (ticketStats as { abiertos?: number })?.abiertos || 0;
 
   const menuItems = [
     // Operación diaria

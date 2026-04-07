@@ -1,12 +1,20 @@
 import {
   Injectable, Logger, BadRequestException, ConflictException, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ClientStatus, ServiceType } from '@prisma/client';
 import dayjs from 'dayjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { normalizeName } from '../../common/utils/normalize-name.util';
 import { FiscalService } from '../fiscal/fiscal.service';
+import {
+  DomainEvents,
+  ClientDeactivatedEvent,
+  ClientReactivatedEvent,
+  PaymentCreatedEvent,
+  PaymentDeletedEvent,
+} from '../../common/events/domain-events';
 
 @Injectable()
 export class ClientsOperationsService {
@@ -16,6 +24,7 @@ export class ClientsOperationsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly fiscalService: FiscalService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ── Alta de cliente ──────────────────────────────────────
@@ -78,6 +87,7 @@ export class ClientsOperationsService {
     ]);
 
     await this.audit.log(userId, 'CLIENT_DEACTIVATED', 'CLIENT', clientId);
+    this.eventEmitter.emit(DomainEvents.CLIENT_DEACTIVATED, new ClientDeactivatedEvent(clientId, userId));
     return this.prisma.client.findUnique({ where: { id: clientId }, include: { subscriptions: true } });
   }
 
@@ -91,6 +101,7 @@ export class ClientsOperationsService {
     ]);
 
     await this.audit.log(userId, 'CLIENT_REACTIVATED', 'CLIENT', clientId);
+    this.eventEmitter.emit(DomainEvents.CLIENT_REACTIVATED, new ClientReactivatedEvent(clientId, userId));
     return this.prisma.client.findUnique({ where: { id: clientId }, include: { subscriptions: true } });
   }
 
@@ -198,6 +209,7 @@ export class ClientsOperationsService {
       comprobante = await this.fiscalService.emitirComprobanteParaPago(clientId, subId, pp.id, userId);
     } catch (error) { this.logger.warn(`Error emitiendo comprobante para pago: ${error instanceof Error ? error.message : error}`); }
 
+    this.eventEmitter.emit(DomainEvents.PAYMENT_CREATED, new PaymentCreatedEvent(clientId, subId, year, month, userId));
     return { ...pp, document: doc, comprobante };
   }
 
@@ -219,6 +231,7 @@ export class ClientsOperationsService {
     await this.audit.log(userId, 'PAYMENT_MANUAL_DELETED', 'PAYMENT', periodId, {
       year: pp.year, month: pp.month,
     });
+    this.eventEmitter.emit(DomainEvents.PAYMENT_DELETED, new PaymentDeletedEvent(clientId, subId, periodId, userId));
   }
 
   // ── Notas ────────────────────────────────────────────────

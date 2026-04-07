@@ -1,59 +1,50 @@
-import { useState, useCallback, useEffect } from 'react';
-import { message } from 'antd';
-import { clientsApi, getErrorMessage } from '../../../services/api';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { clientsApi } from '../../../services/api';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import type {
   ClientWithDebt,
-  ClientDetailResult,
   ClientStatus,
   DebtStatus,
   Pagination,
 } from '../../../types';
 
 export function useClients() {
-  const [clients, setClients] = useState<ClientWithDebt[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    total: 0, page: 1, limit: 20, totalPages: 0,
-  });
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState<ClientStatus | undefined>();
   const [debtStatus, setDebtStatus] = useState<DebtStatus | undefined>();
   const [zona, setZona] = useState<string | undefined>();
+  const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search);
 
-  const load = useCallback(
-    async (page = 1) => {
-      try {
-        setLoading(true);
-        const res = await clientsApi.getAll({
-          search: debouncedSearch || undefined,
-          estado,
-          debtStatus,
-          zona,
-          page,
-          limit: 20,
-        });
-        setClients(res.data);
-        setPagination(res.pagination);
-      } catch (err) {
-        message.error(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [debouncedSearch, estado, debtStatus, zona],
-  );
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['clients', { search: debouncedSearch || undefined, estado, debtStatus, zona, page }],
+    queryFn: () =>
+      clientsApi.getAll({
+        search: debouncedSearch || undefined,
+        estado,
+        debtStatus,
+        zona,
+        page,
+        limit: 20,
+      }),
+    placeholderData: (prev) => prev,
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const clients: ClientWithDebt[] = data?.data ?? [];
+  const pagination: Pagination = data?.pagination ?? { total: 0, page: 1, limit: 20, totalPages: 0 };
+
+  const load = (p = 1) => {
+    setPage(p);
+    // If same page, force refetch
+    if (p === page) refetch();
+  };
 
   return {
     clients,
     pagination,
-    loading,
+    loading: isLoading,
     search,
     setSearch,
     estado,
@@ -68,24 +59,22 @@ export function useClients() {
 
 export function useClientDetail() {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<ClientDetailResult | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
 
-  const openDetail = async (id: string) => {
+  const { data: detail, isLoading: loading } = useQuery({
+    queryKey: ['clientDetail', clientId],
+    queryFn: () => clientsApi.getOne(clientId!),
+    enabled: !!clientId && open,
+  });
+
+  const openDetail = (id: string) => {
+    setClientId(id);
     setOpen(true);
-    setLoading(true);
-    setDetail(null);
-    try {
-      const data = await clientsApi.getOne(id);
-      setDetail(data);
-    } catch (err) {
-      message.error(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
   };
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+  };
 
-  return { open, loading, detail, openDetail, close };
+  return { open, loading, detail: detail ?? null, openDetail, close, clientId };
 }

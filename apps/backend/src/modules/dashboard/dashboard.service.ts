@@ -1,14 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ClientStatus, ServiceType } from '@prisma/client';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/es';
-import { PrismaService } from '../../common/prisma/prisma.service';
 
 dayjs.extend(relativeTime);
 dayjs.locale('es');
 import { ClientsService, ClientDebtInfo } from '../clients/clients.service';
-import { calcularPrecioConPromo } from '../../common/utils/promotion-calculator.util';
+import { DomainEvents } from '../../common/events/domain-events';
+import { DashboardRepository } from './dashboard.repository';
 
 const CACHE_TTL = 60_000;
 const MONTH_LABELS = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -19,10 +20,15 @@ export class DashboardService {
   private cache: Map<string, { data: any; expiresAt: number }> = new Map();
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repository: DashboardRepository,
     private readonly clientsService: ClientsService,
   ) {}
 
+  @OnEvent(DomainEvents.CLIENT_DEACTIVATED)
+  @OnEvent(DomainEvents.CLIENT_REACTIVATED)
+  @OnEvent(DomainEvents.PAYMENT_CREATED)
+  @OnEvent(DomainEvents.PAYMENT_DELETED)
+  @OnEvent(DomainEvents.IMPORT_COMPLETED)
   invalidateCache() {
     this.cache.clear();
     this.logger.log('Cache de dashboard invalidado');
@@ -40,7 +46,7 @@ export class DashboardService {
 
   /** Carga umbralCorte una sola vez (cacheado junto con el resto) */
   private async getUmbralCorte(): Promise<number> {
-    const config = await this.prisma.empresaConfig.findFirst({ select: { umbralCorte: true } });
+    const config = await this.repository.getEmpresaConfig();
     return config?.umbralCorte ?? 1;
   }
 
@@ -52,41 +58,27 @@ export class DashboardService {
 
     const [totalClients, activeClients, bajaClients, debtStats, docCounts, recentImports, umbralCorte] =
       await Promise.all([
-        this.prisma.client.count(),
-        this.prisma.client.count({ where: { estado: ClientStatus.ACTIVO } }),
-        this.prisma.client.count({ where: { estado: ClientStatus.BAJA } }),
+        this.repository.getTotalClientCount(),
+        this.repository.countClientsByEstado(ClientStatus.ACTIVO),
+        this.repository.countClientsByEstado(ClientStatus.BAJA),
         this.clientsService.getDebtStats(),
-        this.getDocumentCounts(),
-        this.getRecentImports(),
+        this.repository.getDocumentCounts(),
+        this.repository.getRecentImports(),
         this.getUmbralCorte(),
       ]);
-    const activeSubs = await this.prisma.subscription.count({ where: { estado: ClientStatus.ACTIVO } });
-    const subsWithPlan = await this.prisma.subscription.findMany({
-      where: { estado: ClientStatus.ACTIVO, planId: { not: null } },
-      include: { plan: true },
-    });
+    const activeSubs = await this.repository.getActiveSubscriptionCount();
+    const subsWithPlan = await this.repository.getSubscriptionsWithPlan();
     const mrrTeorico = subsWithPlan.reduce((sum, s) => sum + (s.plan ? Number(s.plan.precio) : 0), 0);
 
     const now = dayjs();
-    const paidThisMonth = await this.prisma.paymentPeriod.groupBy({
-      by: ['subscriptionId'],
-      where: { year: now.year(), month: now.month() + 1, subscriptionId: { not: null } },
-    });
+    const paidThisMonth = await this.repository.getPaymentPeriodsGrouped(now.year(), now.month() + 1);
 
-    const enRiesgo = await this.prisma.subscription.count({
-      where: { estado: ClientStatus.ACTIVO, deudaCalculada: umbralCorte },
-    });
+    const enRiesgo = await this.repository.countSubscriptionsAtDeuda(umbralCorte);
 
-    const altasMes = await this.prisma.client.count({
-      where: { createdAt: { gte: now.startOf('month').toDate() } },
-    });
-    const bajasMes = await this.prisma.auditLog.count({
-      where: { action: 'CLIENT_DEACTIVATED', createdAt: { gte: now.startOf('month').toDate() } },
-    });
+    const altasMes = await this.repository.countClientsCreatedSince(now.startOf('month').toDate());
+    const bajasMes = await this.repository.countAuditLogSince('CLIENT_DEACTIVATED', now.startOf('month').toDate());
 
-    const internetSubs = await this.prisma.subscription.count({
-      where: { estado: ClientStatus.ACTIVO, tipo: ServiceType.INTERNET },
-    });
+    const internetSubs = await this.repository.countInternetSubscriptions();
 
     const result = {
       resumen: { totalClients, activeClients, bajaClients },
@@ -108,26 +100,71 @@ export class DashboardService {
   }
 
   async getClientesParaCorte() {
-    const cached = this.getCached<ClientDebtInfo[]>('corte');
+    const cached = this.getCached<(ClientDebtInfo & { zona: string | null; telefono: string | null })[]>('corte');
     if (cached) return cached;
 
-    const clients = await this.prisma.client.findMany({
-      where: { estado: ClientStatus.ACTIVO },
-      include: {
-        subscriptions: {
-          include: { paymentPeriods: { select: { year: true, month: true } } },
-        },
-      },
-    });
+    // Use pre-computed requiereCorte from Subscription rows (set by nightly scheduler)
+    const subs = await this.repository.getCorteSubscriptions();
 
-    const result = clients
-      .map((c) => ({
-        ...this.clientsService.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions),
+    // Group by client, build ClientDebtInfo-compatible objects
+    const clientMap = new Map<string, {
+      client: typeof subs[0]['client'];
+      cableSub: { cantidadDeuda: number; requiereCorte: boolean } | null;
+      internetSub: { cantidadDeuda: number; requiereCorte: boolean } | null;
+      subscriptions: Array<{ subscriptionId: string; tipo: ServiceType; cantidadDeuda: number; requiereCorte: boolean }>;
+    }>();
+
+    for (const sub of subs) {
+      const c = sub.client;
+      if (!clientMap.has(c.id)) {
+        clientMap.set(c.id, { client: c, cableSub: null, internetSub: null, subscriptions: [] });
+      }
+      const entry = clientMap.get(c.id)!;
+      const subInfo = { cantidadDeuda: sub.deudaCalculada ?? 0, requiereCorte: sub.requiereCorte };
+      if (sub.tipo === ServiceType.CABLE) entry.cableSub = subInfo;
+      else entry.internetSub = subInfo;
+      entry.subscriptions.push({
+        subscriptionId: sub.id,
+        tipo: sub.tipo,
+        cantidadDeuda: sub.deudaCalculada ?? 0,
+        requiereCorte: sub.requiereCorte,
+      });
+    }
+
+    const result = [...clientMap.values()].map((entry) => {
+      const { client: c, cableSub, internetSub, subscriptions: subsList } = entry;
+      const maxDeuda = Math.max(0, ...subsList.map((s) => s.cantidadDeuda));
+      return {
+        clientId: c.id,
+        codCli: c.codCli,
+        nombreNormalizado: c.nombreNormalizado,
+        estado: c.estado,
+        fechaAlta: c.fechaAlta,
+        calle: c.calle,
         zona: c.zona,
         telefono: c.telefono,
-      }))
-      .filter((d) => d.requiereCorte)
-      .sort((a, b) => b.cantidadDeuda - a.cantidadDeuda);
+        mesesObligatorios: [] as string[],
+        mesesPagados: [] as string[],
+        mesesAdeudados: [] as string[],
+        cantidadDeuda: maxDeuda,
+        requiereCorte: true,
+        subscriptions: subsList.map((s) => ({
+          subscriptionId: s.subscriptionId,
+          tipo: s.tipo,
+          fechaAlta: new Date(),
+          mesesObligatorios: [] as string[],
+          mesesPagados: [] as string[],
+          mesesAdeudados: [] as string[],
+          mesesConPromoGratis: [] as string[],
+          cantidadDeuda: s.cantidadDeuda,
+          requiereCorte: s.requiereCorte,
+        })),
+        requiereCorteCable: cableSub?.requiereCorte ?? false,
+        requiereCorteInternet: internetSub?.requiereCorte ?? false,
+        deudaCable: cableSub?.cantidadDeuda ?? 0,
+        deudaInternet: internetSub?.cantidadDeuda ?? 0,
+      };
+    }).sort((a, b) => b.cantidadDeuda - a.cantidadDeuda);
 
     this.setCache('corte', result);
     return result;
@@ -146,12 +183,7 @@ export class DashboardService {
     });
 
     // Ejecutar las 24 queries en paralelo (2 por mes × 12 meses)
-    const results = await Promise.all(
-      monthsData.flatMap(({ m, year, month }) => [
-        this.prisma.subscription.count({ where: { estado: ClientStatus.ACTIVO, fechaAlta: { lte: m.endOf('month').toDate() } } }),
-        this.prisma.paymentPeriod.groupBy({ by: ['subscriptionId'], where: { year, month, subscriptionId: { not: null } } }),
-      ]),
-    );
+    const results = await this.repository.getTendenciaData(monthsData);
 
     const meses = monthsData.map(({ m, month, year }, i) => {
       const totalActivos = results[i * 2] as number;
@@ -177,13 +209,7 @@ export class DashboardService {
     if (cached) return cached;
 
     const now = dayjs();
-    const subs = await this.prisma.subscription.findMany({
-      where: { estado: ClientStatus.ACTIVO },
-      include: {
-        plan: true,
-        paymentPeriods: { where: { year: now.year(), month: now.month() + 1 } },
-      },
-    });
+    const subs = await this.repository.getMrrSubscriptions(now.year(), now.month() + 1);
 
     let teorico = 0, recaudado = 0, sinPlan = 0;
     let cableTeorico = 0, cableRecaudado = 0, internetTeorico = 0, internetRecaudado = 0;
@@ -225,10 +251,7 @@ export class DashboardService {
     if (cached) return cached;
     const umbralCorte = await this.getUmbralCorte();
 
-    const subs = await this.prisma.subscription.findMany({
-      where: { estado: ClientStatus.ACTIVO, deudaCalculada: umbralCorte },
-      include: { client: { select: { id: true, nombreNormalizado: true, calle: true, zona: true, telefono: true } } },
-    });
+    const subs = await this.repository.getSubscriptionsAtDeudaWithClient(umbralCorte);
 
     const clientMap = new Map<string, any>();
     for (const sub of subs) {
@@ -265,18 +288,15 @@ export class DashboardService {
     const endLastMonth = now.startOf('month').toDate();
 
     const [altasThisMonth, bajasThisMonth, altasLastMonth, bajasLastMonth, totalActivos] = await Promise.all([
-      this.prisma.client.count({ where: { createdAt: { gte: startThisMonth } } }),
-      this.prisma.auditLog.count({ where: { action: 'CLIENT_DEACTIVATED', createdAt: { gte: startThisMonth } } }),
-      this.prisma.client.count({ where: { createdAt: { gte: startLastMonth, lt: endLastMonth } } }),
-      this.prisma.auditLog.count({ where: { action: 'CLIENT_DEACTIVATED', createdAt: { gte: startLastMonth, lt: endLastMonth } } }),
-      this.prisma.client.count({ where: { estado: ClientStatus.ACTIVO } }),
+      this.repository.countClientsCreatedSince(startThisMonth),
+      this.repository.countAuditLogSince('CLIENT_DEACTIVATED', startThisMonth),
+      this.repository.countClientsCreatedInRange(startLastMonth, endLastMonth),
+      this.repository.countAuditLogInRange('CLIENT_DEACTIVATED', startLastMonth, endLastMonth),
+      this.repository.countClientsByEstado(ClientStatus.ACTIVO),
     ]);
 
     // Penetración internet
-    const subsByClient = await this.prisma.subscription.groupBy({
-      by: ['clientId', 'tipo'],
-      where: { estado: ClientStatus.ACTIVO },
-    });
+    const subsByClient = await this.repository.getActiveSubscriptionsGroupedByClient();
 
     const clientTypes = new Map<string, Set<string>>();
     for (const s of subsByClient) {
@@ -319,10 +339,7 @@ export class DashboardService {
     if (cached) return cached;
     const umbralCorte = await this.getUmbralCorte();
 
-    const clients = await this.prisma.client.findMany({
-      where: { estado: ClientStatus.ACTIVO },
-      select: { zona: true, subscriptions: { select: { deudaCalculada: true }, where: { estado: ClientStatus.ACTIVO } } },
-    });
+    const clients = await this.repository.getZonaData();
 
     const zonaMap = new Map<string, { total: number; enCorte: number; enRiesgo: number; alDia: number }>();
 
@@ -363,24 +380,11 @@ export class DashboardService {
     const now = dayjs();
     const hace48hs = now.subtract(48, 'hour').toDate();
 
-    const [abiertos, resueltosHoy, sinResolver48hs, porTipo, ultimosAbiertos] = await Promise.all([
-      this.prisma.ticket.count({ where: { estado: 'ABIERTO' } }),
-      this.prisma.ticket.count({ where: { estado: 'RESUELTO', resuelto: { gte: now.startOf('day').toDate() } } }),
-      this.prisma.ticket.count({ where: { estado: 'ABIERTO', createdAt: { lte: hace48hs } } }),
-      this.prisma.ticket.groupBy({ by: ['tipo'], where: { estado: 'ABIERTO' }, _count: true }),
-      this.prisma.ticket.findMany({
-        where: { estado: 'ABIERTO' },
-        orderBy: { createdAt: 'asc' },
-        take: 5,
-        include: { client: { select: { id: true, nombreNormalizado: true } } },
-      }),
-    ]);
+    const [abiertos, resueltosHoy, sinResolver48hs, porTipo, ultimosAbiertos] =
+      await this.repository.getTicketStats(hace48hs, now.startOf('day').toDate());
 
     // Tiempo promedio resolución últimos 30 días
-    const resolved30d = await this.prisma.ticket.findMany({
-      where: { estado: 'RESUELTO', resuelto: { gte: now.subtract(30, 'day').toDate() } },
-      select: { createdAt: true, resuelto: true },
-    });
+    const resolved30d = await this.repository.getResolvedTicketsSince(now.subtract(30, 'day').toDate());
     const avgHours = resolved30d.length > 0
       ? Math.round(resolved30d.reduce((sum, t) => sum + dayjs(t.resuelto!).diff(dayjs(t.createdAt), 'hour'), 0) / resolved30d.length)
       : 0;
@@ -406,18 +410,4 @@ export class DashboardService {
     return result;
   }
 
-  // ── Private helpers ──────────────────────────────────────
-
-  private async getDocumentCounts() {
-    const [ramitos, facturas, periods] = await Promise.all([
-      this.prisma.document.count({ where: { tipo: 'RAMITO' } }),
-      this.prisma.document.count({ where: { tipo: 'FACTURA' } }),
-      this.prisma.paymentPeriod.count(),
-    ]);
-    return { ramitos, facturas, periodosRegistrados: periods };
-  }
-
-  private async getRecentImports() {
-    return this.prisma.importLog.findMany({ orderBy: { executedAt: 'desc' }, take: 5 });
-  }
 }

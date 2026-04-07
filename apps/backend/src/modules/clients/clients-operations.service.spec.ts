@@ -14,9 +14,10 @@ const mockPrisma = {
 
 const mockAudit = { log: jest.fn(), getByMultipleEntities: jest.fn() };
 const mockFiscal = { emitirComprobanteParaPago: jest.fn() };
+const mockEventEmitter = { emit: jest.fn() };
 
 function createService() {
-  return new ClientsOperationsService(mockPrisma as any, mockAudit as any, mockFiscal as any);
+  return new ClientsOperationsService(mockPrisma as any, mockAudit as any, mockFiscal as any, mockEventEmitter as any);
 }
 
 beforeEach(() => jest.clearAllMocks());

@@ -8,6 +8,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { exportApi } from '../../services/api';
 import { useClients, useClientDetail } from './hooks/useClients';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,7 @@ export default function ClientsPage() {
   } = useClients();
   const detail = useClientDetail();
   const { hasRole } = useAuth();
+  const qc = useQueryClient();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -248,7 +250,7 @@ export default function ClientsPage() {
         {detail.loading && (
           <Spin size="large" style={{ display: 'block', margin: '60px auto' }} />
         )}
-        {detail.detail && <ClientDetail data={detail.detail} onRefresh={() => detail.openDetail(detail.detail!.clientId)} />}
+        {detail.detail && <ClientDetail data={detail.detail} onRefresh={() => { qc.invalidateQueries({ queryKey: ['clientDetail', detail.clientId] }); qc.invalidateQueries({ queryKey: ['clients'] }); }} />}
       </Drawer>
 
       <CreateClientModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => load()} />

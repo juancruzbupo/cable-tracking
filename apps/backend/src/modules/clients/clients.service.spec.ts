@@ -12,14 +12,42 @@ const mockPrisma = {
     findMany: jest.fn(),
     count: jest.fn(),
   },
+  $queryRaw: jest.fn(),
+};
+
+const mockRepository = {
+  findAllPaginated: jest.fn(),
+  findById: jest.fn(),
+  getDebtStatsBuckets: jest.fn(),
+  getClientIdsForDebtFilter: jest.fn(),
+  getClientesParaCorte: jest.fn(),
+  getScoringDistribution: jest.fn(),
+  countByEstado: jest.fn(),
+  findDocumentsByClient: jest.fn(),
 };
 
 const debtService = new DebtService();
 
 function createService() {
-  return new ClientsService(mockPrisma as any, debtService);
+  return new ClientsService(mockPrisma as any, debtService, mockRepository as any);
 }
 
+/** Client shape for list views (precomputed subscription fields) */
+function makeClientList(overrides: any = {}) {
+  return {
+    id: 'c1', codCli: '100', nombreOriginal: 'TEST', nombreNormalizado: 'TEST',
+    estado: ClientStatus.ACTIVO, fechaAlta: new Date('2025-01-01'), calle: 'Calle 1',
+    zona: 'Centro', telefono: '123456', tipoComprobante: 'RAMITO',
+    subscriptions: [{
+      id: 's1', tipo: ServiceType.CABLE,
+      deudaCalculada: 0, requiereCorte: false,
+    }],
+    _count: { tickets: 0 },
+    ...overrides,
+  };
+}
+
+/** Client shape for detail views (full subscription with payment periods) */
 function makeClient(overrides: any = {}) {
   return {
     id: 'c1', codCli: '100', nombreOriginal: 'TEST', nombreNormalizado: 'TEST',
@@ -41,9 +69,8 @@ beforeEach(() => jest.clearAllMocks());
 describe('ClientsService', () => {
   describe('findAll', () => {
     it('returns paginated data without debtStatus filter', async () => {
-      const clients = [makeClient()];
-      mockPrisma.client.findMany.mockResolvedValue(clients);
-      mockPrisma.client.count.mockResolvedValue(1);
+      const clients = [makeClientList()];
+      mockRepository.findAllPaginated.mockResolvedValue({ clients, total: 1 });
 
       const svc = createService();
       const result = await svc.findAll({ page: 1, limit: 20 });
@@ -55,44 +82,43 @@ describe('ClientsService', () => {
       expect(result.data[0].ticketsAbiertos).toBe(0);
     });
 
-    it('passes search to Prisma where clause', async () => {
-      mockPrisma.client.findMany.mockResolvedValue([]);
-      mockPrisma.client.count.mockResolvedValue(0);
+    it('passes search to repository where clause', async () => {
+      mockRepository.findAllPaginated.mockResolvedValue({ clients: [], total: 0 });
 
       const svc = createService();
       await svc.findAll({ search: 'GOMEZ', page: 1, limit: 20 });
 
-      const call = mockPrisma.client.findMany.mock.calls[0][0];
-      expect(call.where.OR).toBeDefined();
-      expect(call.where.OR[0].nombreNormalizado.contains).toBe('GOMEZ');
+      const call = mockRepository.findAllPaginated.mock.calls[0];
+      expect(call[0].OR).toBeDefined();
+      expect(call[0].OR[0].nombreNormalizado.contains).toBe('GOMEZ');
     });
 
-    it('passes zona to Prisma where clause', async () => {
-      mockPrisma.client.findMany.mockResolvedValue([]);
-      mockPrisma.client.count.mockResolvedValue(0);
+    it('passes zona to repository where clause', async () => {
+      mockRepository.findAllPaginated.mockResolvedValue({ clients: [], total: 0 });
 
       const svc = createService();
       await svc.findAll({ zona: 'Norte', page: 1, limit: 20 });
 
-      const call = mockPrisma.client.findMany.mock.calls[0][0];
-      expect(call.where.zona).toBe('Norte');
+      const call = mockRepository.findAllPaginated.mock.calls[0];
+      expect(call[0].zona).toBe('Norte');
     });
 
-    it('filters by debtStatus in memory', async () => {
-      const clientAlDia = makeClient({ id: 'c1', subscriptions: [{ id: 's1', tipo: ServiceType.CABLE, estado: ClientStatus.ACTIVO, fechaAlta: new Date('2026-03-01'), paymentPeriods: [{ year: 2026, month: 3 }, { year: 2026, month: 4 }], plan: { promotions: [] }, clientPromotions: [] }] });
-      const clientConDeuda = makeClient({ id: 'c2', subscriptions: [{ id: 's2', tipo: ServiceType.CABLE, estado: ClientStatus.ACTIVO, fechaAlta: new Date('2025-01-01'), paymentPeriods: [], plan: { promotions: [] }, clientPromotions: [] }] });
-      mockPrisma.client.findMany.mockResolvedValue([clientAlDia, clientConDeuda]);
+    it('filters by debtStatus at DB level using repository', async () => {
+      // Repository returns matching client IDs
+      mockRepository.getClientIdsForDebtFilter.mockResolvedValue([{ id: 'c1' }]);
+      const clientAlDia = makeClientList({ id: 'c1', subscriptions: [{ id: 's1', tipo: ServiceType.CABLE, deudaCalculada: 0, requiereCorte: false }] });
+      mockRepository.findAllPaginated.mockResolvedValue({ clients: [clientAlDia], total: 1 });
 
       const svc = createService();
       const result = await svc.findAll({ debtStatus: 'AL_DIA', page: 1, limit: 20 });
 
-      expect(result.data.length).toBeLessThanOrEqual(2);
+      expect(mockRepository.getClientIdsForDebtFilter).toHaveBeenCalled();
+      expect(result.data).toHaveLength(1);
       result.data.forEach((c: any) => expect(c.debtInfo.cantidadDeuda).toBe(0));
     });
 
     it('includes scoring in response', async () => {
-      mockPrisma.client.findMany.mockResolvedValue([makeClient()]);
-      mockPrisma.client.count.mockResolvedValue(1);
+      mockRepository.findAllPaginated.mockResolvedValue({ clients: [makeClientList()], total: 1 });
 
       const svc = createService();
       const result = await svc.findAll({ page: 1, limit: 20 });
@@ -114,8 +140,7 @@ describe('ClientsService', () => {
     it('returns fiscal fields in response', async () => {
       const client = makeClient({ tipoDocumento: 'CUIT', numeroDocFiscal: '20331302954', condicionFiscal: 'MONOTRIBUTISTA', razonSocial: 'Test SA', email: 'test@test.com', codigoPostal: '3100', localidad: 'Paraná', provincia: 'Entre Ríos' });
       mockPrisma.client.findUnique.mockResolvedValue(client);
-      mockPrisma.document.findMany.mockResolvedValue([]);
-      mockPrisma.document.count.mockResolvedValue(0);
+      mockRepository.findDocumentsByClient.mockResolvedValue({ documents: [], total: 0 });
 
       const svc = createService();
       const result = await svc.findOneWithDebt('c1');
@@ -129,8 +154,10 @@ describe('ClientsService', () => {
 
     it('returns documents with pagination', async () => {
       mockPrisma.client.findUnique.mockResolvedValue(makeClient());
-      mockPrisma.document.findMany.mockResolvedValue([{ id: 'd1', tipo: 'RAMITO', fechaDocumento: null, numeroDocumento: null, descripcionOriginal: null, paymentPeriods: [], subscription: null }]);
-      mockPrisma.document.count.mockResolvedValue(1);
+      mockRepository.findDocumentsByClient.mockResolvedValue({
+        documents: [{ id: 'd1', tipo: 'RAMITO', fechaDocumento: null, numeroDocumento: null, descripcionOriginal: null, paymentPeriods: [], subscription: null }],
+        total: 1,
+      });
 
       const svc = createService();
       const result = await svc.findOneWithDebt('c1', 1, 10);
@@ -141,18 +168,33 @@ describe('ClientsService', () => {
   });
 
   describe('getDebtStats', () => {
-    it('counts debt categories correctly', async () => {
-      const alDia = makeClient({ id: 'c1', subscriptions: [{ id: 's1', tipo: ServiceType.CABLE, estado: ClientStatus.ACTIVO, fechaAlta: new Date('2026-03-01'), paymentPeriods: [{ year: 2026, month: 3 }, { year: 2026, month: 4 }], plan: { promotions: [] }, clientPromotions: [] }] });
-      const conDeuda = makeClient({ id: 'c2', subscriptions: [{ id: 's2', tipo: ServiceType.CABLE, estado: ClientStatus.ACTIVO, fechaAlta: new Date('2025-01-01'), paymentPeriods: [], plan: { promotions: [] }, clientPromotions: [] }] });
-      mockPrisma.client.findMany.mockResolvedValue([alDia, conDeuda]);
+    it('counts debt categories correctly using repository', async () => {
+      mockRepository.getDebtStatsBuckets.mockResolvedValue([
+        { bucket: 'alDia', cnt: 5 },
+        { bucket: 'unMes', cnt: 3 },
+        { bucket: 'dosMeses', cnt: 2 },
+        { bucket: 'masDosMeses', cnt: 1 },
+      ]);
+      mockRepository.countByEstado.mockResolvedValue(11);
+      mockRepository.getClientesParaCorte.mockResolvedValue([{ nombre_normalizado: 'CLIENT A' }]);
+      mockRepository.getScoringDistribution.mockResolvedValue([
+        { scoring: 'bueno', cnt: 5 },
+        { scoring: 'regular', cnt: 3 },
+        { scoring: 'riesgo', cnt: 2 },
+        { scoring: 'critico', cnt: 1 },
+      ]);
 
       const svc = createService();
       const stats = await svc.getDebtStats();
 
-      expect(stats.total).toBe(2);
-      expect(stats.alDia + stats.unMes + stats.dosMeses + stats.masDosMeses).toBe(2);
+      expect(stats.total).toBe(11);
+      expect(stats.alDia).toBe(5);
+      expect(stats.unMes).toBe(3);
+      expect(stats.dosMeses).toBe(2);
+      expect(stats.masDosMeses).toBe(1);
+      expect(stats.clientesParaCorte).toEqual(['CLIENT A']);
       expect(stats.scoring).toBeDefined();
-      expect(stats.scoring.bueno + stats.scoring.regular + stats.scoring.riesgo + stats.scoring.critico).toBe(2);
+      expect(stats.scoring.bueno + stats.scoring.regular + stats.scoring.riesgo + stats.scoring.critico).toBe(11);
     });
   });
 

@@ -36,11 +36,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     response.status(status).json({
       success: false,
       statusCode: status,
       message,
-      details,
+      ...(isProduction ? {} : { details }),
       timestamp: new Date().toISOString(),
     });
   }

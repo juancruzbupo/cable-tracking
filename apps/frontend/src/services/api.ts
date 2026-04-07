@@ -23,6 +23,7 @@ import type {
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 120000,
+  withCredentials: true,
 });
 
 // ── Auth interceptor ───────────────────────────────────────────────────────
@@ -317,6 +318,9 @@ export const authApi = {
   refresh: async (): Promise<LoginResponse> => {
     const { data } = await api.post('/auth/refresh');
     return data;
+  },
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
   },
 };
 

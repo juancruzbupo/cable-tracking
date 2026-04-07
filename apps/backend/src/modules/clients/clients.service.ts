@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ClientStatus, Prisma, ServiceType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DebtService, SubscriptionDebt, ClientDebtInfo } from './debt.service';
+import { ClientsRepository } from './clients.repository';
 
 // Re-export for backwards compatibility
 export { SubscriptionDebt, ClientDebtInfo } from './debt.service';
@@ -44,7 +45,7 @@ export interface ClientListFilters {
   limit?: number;
 }
 
-// Include reutilizable para cargar suscripciones con periodos y promos
+// Full include for real-time debt calculation (detail view only)
 const SUBS_INCLUDE = {
   subscriptions: {
     include: {
@@ -55,19 +56,33 @@ const SUBS_INCLUDE = {
   },
 } as const;
 
+// Lightweight include for list views — uses pre-computed fields only
+const SUBS_PRECOMPUTED_INCLUDE = {
+  subscriptions: {
+    where: { estado: ClientStatus.ACTIVO },
+    select: {
+      id: true,
+      tipo: true,
+      deudaCalculada: true,
+      requiereCorte: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly debtService: DebtService,
+    private readonly repository: ClientsRepository,
   ) {}
 
   /**
    * Lista clientes con filtros y paginación.
    *
-   * FIX Fase 4: Cuando se filtra por debtStatus, la paginación se calcula
-   * DESPUÉS del filtro en memoria, no antes. Esto corrige el bug donde
-   * pagination.total no matcheaba con los resultados mostrados.
+   * Uses pre-computed deudaCalculada/requiereCorte from Subscription rows
+   * (written by the nightly scheduler) for both debt filtering and display.
+   * This avoids loading all clients into memory.
    */
   async findAll(filters: ClientListFilters) {
     const { search, estado, debtStatus, zona, page = 1, limit = 20 } = filters;
@@ -86,57 +101,50 @@ export class ClientsService {
       where.estado = estado;
     }
 
-    // ── Sin filtro de deuda: paginación normal en DB ──────────────
-    if (!debtStatus) {
-      const [clients, total] = await Promise.all([
-        this.prisma.client.findMany({
-          where,
-          orderBy: { nombreNormalizado: 'asc' },
-          skip: (page - 1) * limit,
-          take: limit,
-          include: { ...SUBS_INCLUDE, _count: { select: { tickets: { where: { estado: 'ABIERTO' } } } } },
-        }),
-        this.prisma.client.count({ where }),
-      ]);
-
-      const data = clients.map((c) => {
-        const debtInfo = this.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions);
-        return { ...c, ticketsAbiertos: c._count?.tickets ?? 0, debtInfo, scoring: DebtService.calcularScoring(debtInfo.cantidadDeuda, debtInfo.requiereCorte) };
-      });
-
-      return {
-        data,
-        pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    // ── DB-level debtStatus filter using pre-computed fields ──────
+    if (debtStatus) {
+      const debtConditions: Record<string, Prisma.Sql> = {
+        'AL_DIA': Prisma.sql`COALESCE(max_debt, 0) = 0`,
+        '1_MES': Prisma.sql`max_debt = 1`,
+        '2_MESES': Prisma.sql`max_debt = 2`,
+        'MAS_2_MESES': Prisma.sql`max_debt > 2`,
       };
+      const debtCondition = debtConditions[debtStatus];
+
+      // Build a WHERE clause for the raw query that mirrors the Prisma where
+      const rawConditions: Prisma.Sql[] = [Prisma.sql`c.estado = 'ACTIVO'`];
+      if (zona) {
+        if (zona === 'Sin zona') {
+          rawConditions.push(Prisma.sql`c.zona IS NULL`);
+        } else {
+          rawConditions.push(Prisma.sql`c.zona = ${zona}`);
+        }
+      }
+      if (search) {
+        const upperSearch = `%${search.toUpperCase()}%`;
+        rawConditions.push(Prisma.sql`(c.nombre_normalizado ILIKE ${upperSearch} OR c.cod_cli LIKE ${`%${search}%`})`);
+      }
+      if (estado) {
+        rawConditions.push(Prisma.sql`c.estado = ${estado}::"ClientStatus"`);
+      }
+
+      const whereClause = Prisma.sql`${Prisma.join(rawConditions, ' AND ')}`;
+
+      const matchingIds = await this.repository.getClientIdsForDebtFilter(debtCondition, whereClause);
+      where.id = { in: matchingIds.map((r) => r.id) };
     }
 
-    const allClients = await this.prisma.client.findMany({
+    const { clients, total } = await this.repository.findAllPaginated(
       where,
-      orderBy: { nombreNormalizado: 'asc' },
-      include: { ...SUBS_INCLUDE, _count: { select: { tickets: { where: { estado: 'ABIERTO' } } } } },
-    });
+      page,
+      limit,
+      { ...SUBS_PRECOMPUTED_INCLUDE, _count: { select: { tickets: { where: { estado: 'ABIERTO' } } } } },
+    );
 
-    const withDebt = allClients.map((c) => {
-      const debtInfo = this.calculateDebt(c.id, c.codCli, c.nombreNormalizado, c.estado, c.fechaAlta, c.calle, c.subscriptions);
+    const data = clients.map((c) => {
+      const debtInfo = this.buildDebtInfoFromPrecomputed(c);
       return { ...c, ticketsAbiertos: c._count?.tickets ?? 0, debtInfo, scoring: DebtService.calcularScoring(debtInfo.cantidadDeuda, debtInfo.requiereCorte) };
     });
-
-    // Filtrar por debtStatus
-    const filtered = withDebt.filter((c) => {
-      const d = c.debtInfo.cantidadDeuda;
-      switch (debtStatus) {
-        case 'AL_DIA': return d === 0;
-        case '1_MES': return d === 1;
-        case '2_MESES': return d === 2;
-        case 'MAS_2_MESES': return d > 2;
-        default: return true;
-      }
-    });
-
-    // Paginar en memoria
-    const total = filtered.length;
-    const start = (page - 1) * limit;
-    const data = filtered.slice(start, start + limit);
 
     return {
       data,
@@ -160,19 +168,7 @@ export class ClientsService {
     });
     if (!client) return null;
 
-    const [documents, docTotal] = await Promise.all([
-      this.prisma.document.findMany({
-        where: { clientId: id },
-        orderBy: { fechaDocumento: 'desc' },
-        skip: (docPage - 1) * docLimit,
-        take: docLimit,
-        include: {
-          paymentPeriods: { select: { year: true, month: true } },
-          subscription: { select: { tipo: true } },
-        },
-      }),
-      this.prisma.document.count({ where: { clientId: id } }),
-    ]);
+    const { documents, total: docTotal } = await this.repository.findDocumentsByClient(id, docPage, docLimit);
 
     const debt = this.calculateDebt(
       client.id,
@@ -229,39 +225,31 @@ export class ClientsService {
   }
 
   async getDebtStats() {
-    const clients = await this.prisma.client.findMany({
-      where: { estado: ClientStatus.ACTIVO },
-      include: SUBS_INCLUDE,
-    });
+    // Use pre-computed deudaCalculada from Subscription rows (set by nightly scheduler)
+    const [buckets, total, clientesParaCorteRows, scoringRows] = await Promise.all([
+      this.repository.getDebtStatsBuckets(),
+      this.repository.countByEstado(ClientStatus.ACTIVO),
+      this.repository.getClientesParaCorte(),
+      this.repository.getScoringDistribution(),
+    ]);
 
-    let alDia = 0;
-    let unMes = 0;
-    let dosMeses = 0;
-    let masDosMeses = 0;
-    const clientesParaCorte: string[] = [];
+    const bucketMap: Record<string, number> = {};
+    for (const b of buckets) bucketMap[b.bucket] = b.cnt;
+    const alDia = bucketMap['alDia'] ?? 0;
+    const unMes = bucketMap['unMes'] ?? 0;
+    const dosMeses = bucketMap['dosMeses'] ?? 0;
+    const masDosMeses = bucketMap['masDosMeses'] ?? 0;
 
-    for (const client of clients) {
-      const debt = this.calculateDebt(
-        client.id,
-        client.codCli,
-        client.nombreNormalizado,
-        client.estado,
-        client.fechaAlta,
-        client.calle,
-        client.subscriptions,
-      );
+    const clientesParaCorte = clientesParaCorteRows.map((r) => r.nombre_normalizado);
 
-      if (debt.cantidadDeuda === 0) alDia++;
-      else if (debt.cantidadDeuda === 1) unMes++;
-      else if (debt.cantidadDeuda === 2) dosMeses++;
-      else {
-        masDosMeses++;
-        clientesParaCorte.push(client.nombreNormalizado);
-      }
-    }
-
-    const total = clients.length;
-    const scoring = { bueno: alDia, regular: unMes, riesgo: dosMeses, critico: masDosMeses };
+    const scoringMap: Record<string, number> = {};
+    for (const s of scoringRows) scoringMap[s.scoring] = s.cnt;
+    const scoring = {
+      bueno: scoringMap['bueno'] ?? 0,
+      regular: scoringMap['regular'] ?? 0,
+      riesgo: scoringMap['riesgo'] ?? 0,
+      critico: scoringMap['critico'] ?? 0,
+    };
 
     return {
       total,
@@ -270,12 +258,63 @@ export class ClientsService {
       dosMeses,
       masDosMeses,
       requierenCorte: clientesParaCorte.length,
-      tasaMorosidad:
-        total > 0
-          ? ((unMes + dosMeses + masDosMeses) / total) * 100
-          : 0,
+      tasaMorosidad: total > 0 ? ((unMes + dosMeses + masDosMeses) / total) * 100 : 0,
       clientesParaCorte,
       scoring,
+    };
+  }
+
+  /**
+   * Build a ClientDebtInfo-compatible object from pre-computed subscription fields.
+   * Used for list views where real-time calculation is not needed.
+   */
+  private buildDebtInfoFromPrecomputed(client: {
+    id: string;
+    codCli: string;
+    nombreNormalizado: string;
+    estado: ClientStatus;
+    fechaAlta: Date | null;
+    calle: string | null;
+    subscriptions: Array<{
+      id: string;
+      tipo: ServiceType;
+      deudaCalculada: number | null;
+      requiereCorte: boolean;
+    }>;
+  }): ClientDebtInfo {
+    const subDebts: SubscriptionDebt[] = client.subscriptions.map((sub) => ({
+      subscriptionId: sub.id,
+      tipo: sub.tipo,
+      fechaAlta: new Date(),
+      mesesObligatorios: [],
+      mesesPagados: [],
+      mesesAdeudados: [],
+      mesesConPromoGratis: [],
+      cantidadDeuda: sub.deudaCalculada ?? 0,
+      requiereCorte: sub.requiereCorte,
+    }));
+
+    const cableDebt = subDebts.find((s) => s.tipo === ServiceType.CABLE);
+    const internetDebt = subDebts.find((s) => s.tipo === ServiceType.INTERNET);
+    const maxDeuda = Math.max(0, ...subDebts.map((s) => s.cantidadDeuda));
+
+    return {
+      clientId: client.id,
+      codCli: client.codCli,
+      nombreNormalizado: client.nombreNormalizado,
+      estado: client.estado,
+      fechaAlta: client.fechaAlta,
+      calle: client.calle,
+      mesesObligatorios: [],
+      mesesPagados: [],
+      mesesAdeudados: [],
+      cantidadDeuda: maxDeuda,
+      requiereCorte: subDebts.some((s) => s.requiereCorte),
+      subscriptions: subDebts,
+      requiereCorteCable: cableDebt?.requiereCorte ?? false,
+      requiereCorteInternet: internetDebt?.requiereCorte ?? false,
+      deudaCable: cableDebt?.cantidadDeuda ?? 0,
+      deudaInternet: internetDebt?.cantidadDeuda ?? 0,
     };
   }
 }
