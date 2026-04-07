@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Param, Query, Body, Request } from '@nest
 import { ApiTags } from '@nestjs/swagger';
 import { EquipmentStatus } from '@prisma/client';
 import { EquipmentService } from './equipment.service';
+import { CreateEquipmentDto } from './dto/create-equipment.dto';
+import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 
@@ -26,9 +28,9 @@ export class EquipmentController {
 
   @Post()
   @Roles('ADMIN')
-  create(@Request() req: AuthenticatedRequest, @Body() body: any) { return this.equipmentService.create(req.user.id, body); }
+  create(@Request() req: AuthenticatedRequest, @Body() body: CreateEquipmentDto) { return this.equipmentService.create(req.user.id, body); }
 
   @Patch(':id')
   @Roles('ADMIN')
-  update(@Param('id') id: string, @Body() body: any) { return this.equipmentService.update(id, body); }
+  update(@Param('id') id: string, @Body() body: UpdateEquipmentDto) { return this.equipmentService.update(id, body); }
 }

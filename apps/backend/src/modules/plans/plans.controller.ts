@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Request } fro
 import { ApiTags } from '@nestjs/swagger';
 import { ServiceType } from '@prisma/client';
 import { PlansService } from './plans.service';
+import { UpdatePlanDto } from './dto/update-plan.dto';
 import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 
@@ -30,7 +31,7 @@ export class PlansController {
 
   @Patch(':id')
   @Roles('ADMIN')
-  update(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: any) {
+  update(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: UpdatePlanDto) {
     return this.plansService.update(req.user.id, id, body);
   }
 
