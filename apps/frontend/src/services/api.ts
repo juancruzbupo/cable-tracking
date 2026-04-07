@@ -208,7 +208,7 @@ export const clientsApi = {
 
   getNotes: async (clientId: string): Promise<ClientNote[]> => {
     const { data } = await api.get(`/clients/${clientId}/notes`);
-    return data;
+    return data.data ?? data;
   },
 
   createNote: async (clientId: string, content: string): Promise<ClientNote> => {

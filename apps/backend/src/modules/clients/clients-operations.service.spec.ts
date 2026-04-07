@@ -7,7 +7,7 @@ const mockPrisma = {
   subscription: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   document: { create: jest.fn() },
   paymentPeriod: { findFirst: jest.fn(), create: jest.fn() },
-  clientNote: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn() },
+  clientNote: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn() },
   auditLog: { findMany: jest.fn(), findFirst: jest.fn() },
   $queryRawUnsafe: jest.fn(),
 };
@@ -101,10 +101,36 @@ describe('ClientsOperationsService', () => {
   });
 
   describe('getNotes', () => {
-    it('returns notes with limit 100', async () => {
+    it('returns paginated notes with default limit 50', async () => {
       mockPrisma.clientNote.findMany.mockResolvedValue([]);
+      mockPrisma.clientNote.count.mockResolvedValue(0);
       const svc = createService();
-      await svc.getNotes('c1');
+      const result = await svc.getNotes('c1');
+      const call = mockPrisma.clientNote.findMany.mock.calls[0][0];
+      expect(call.take).toBe(50);
+      expect(call.skip).toBe(0);
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('pagination');
+      expect(result.pagination.page).toBe(1);
+    });
+
+    it('respects page and limit params', async () => {
+      mockPrisma.clientNote.findMany.mockResolvedValue([]);
+      mockPrisma.clientNote.count.mockResolvedValue(100);
+      const svc = createService();
+      const result = await svc.getNotes('c1', 2, 25);
+      const call = mockPrisma.clientNote.findMany.mock.calls[0][0];
+      expect(call.take).toBe(25);
+      expect(call.skip).toBe(25);
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.totalPages).toBe(4);
+    });
+
+    it('caps limit at 100', async () => {
+      mockPrisma.clientNote.findMany.mockResolvedValue([]);
+      mockPrisma.clientNote.count.mockResolvedValue(0);
+      const svc = createService();
+      await svc.getNotes('c1', 1, 500);
       const call = mockPrisma.clientNote.findMany.mock.calls[0][0];
       expect(call.take).toBe(100);
     });
