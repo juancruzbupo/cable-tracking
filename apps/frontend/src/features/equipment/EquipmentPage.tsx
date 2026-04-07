@@ -4,6 +4,8 @@ import { PlusOutlined, ToolOutlined, LinkOutlined, SearchOutlined } from '@ant-d
 import { useNavigate } from 'react-router-dom';
 import { equipmentApi, clientsApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useDebouncedCallback } from '../../shared/hooks/useDebounce';
+import type { Equipment, EquipmentStats, ClientWithDebt } from '../../types';
 
 const STATUS_COLORS: Record<string, string> = { EN_DEPOSITO: 'green', ASIGNADO: 'blue', EN_REPARACION: 'orange', DE_BAJA: 'default' };
 const TIPO_OPTIONS = ['MODEM', 'DECODIFICADOR', 'ROUTER', 'MATERIAL'];
@@ -14,8 +16,8 @@ export default function EquipmentPage() {
   const canOperate = hasRole('ADMIN', 'OPERADOR');
   const isAdmin = hasRole('ADMIN');
 
-  const [equipment, setEquipment] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [stats, setStats] = useState<EquipmentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -25,7 +27,7 @@ export default function EquipmentPage() {
 
   // Assign modal
   const [assignModal, setAssignModal] = useState<{ equipId: string; equipLabel: string } | null>(null);
-  const [clientOptions, setClientOptions] = useState<any[]>([]);
+  const [clientOptions, setClientOptions] = useState<ClientWithDebt[]>([]);
   const [clientSearching, setClientSearching] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState('');
 
@@ -46,15 +48,15 @@ export default function EquipmentPage() {
     catch (err) { message.error(getErrorMessage(err)); }
   };
 
-  const searchClients = async (search: string) => {
+  const searchClients = useDebouncedCallback(async (search: string) => {
     if (!search || search.length < 2) return;
     setClientSearching(true);
     try {
       const res = await clientsApi.getAll({ search, estado: 'ACTIVO', limit: 20 });
       setClientOptions(res.data || []);
-    } catch { /* */ }
+    } catch (err) { message.error(getErrorMessage(err)); }
     finally { setClientSearching(false); }
-  };
+  }, 350);
 
   const handleAssign = async () => {
     if (!assignModal || !selectedClientId) return;

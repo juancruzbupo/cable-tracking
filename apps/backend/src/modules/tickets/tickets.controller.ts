@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Param, Query, Body, Request } from '@nest
 import { ApiTags } from '@nestjs/swagger';
 import { TicketType } from '@prisma/client';
 import { TicketsService } from './tickets.service';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Tickets')
@@ -21,7 +22,7 @@ export class TicketsController {
 
   @Patch(':id/resolver')
   @Roles('ADMIN', 'OPERADOR')
-  resolve(@Request() req: any, @Param('id') id: string, @Body('notas') notas?: string) {
+  resolve(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body('notas') notas?: string) {
     return this.ticketsService.resolve(req.user.id, id, notas);
   }
 }

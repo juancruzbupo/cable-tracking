@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Param, Query, Body, Request } from '@nest
 import { ApiTags } from '@nestjs/swagger';
 import { EquipmentStatus } from '@prisma/client';
 import { EquipmentService } from './equipment.service';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Equipment')
@@ -25,7 +26,7 @@ export class EquipmentController {
 
   @Post()
   @Roles('ADMIN')
-  create(@Request() req: any, @Body() body: any) { return this.equipmentService.create(req.user.id, body); }
+  create(@Request() req: AuthenticatedRequest, @Body() body: any) { return this.equipmentService.create(req.user.id, body); }
 
   @Patch(':id')
   @Roles('ADMIN')

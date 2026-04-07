@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { message } from 'antd';
-import { authApi, setAuthToken, setOnUnauthorized } from '../services/api';
+import { authApi, setAuthToken, setOnUnauthorized, setOnTokenRefreshed } from '../services/api';
 import type { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -55,6 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [logout]);
 
+  useEffect(() => {
+    setOnTokenRefreshed((newToken: string) => {
+      localStorage.setItem(TOKEN_KEY, newToken);
+      setToken(newToken);
+    });
+  }, []);
+
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password);
     localStorage.setItem(TOKEN_KEY, res.accessToken);
@@ -63,10 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   };
 
-  const hasRole = (...roles: UserRole[]) => {
+  const hasRole = useCallback((...roles: UserRole[]) => {
     if (!user) return false;
     return roles.includes(user.role);
-  };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{

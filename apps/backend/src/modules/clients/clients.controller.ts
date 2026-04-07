@@ -10,8 +10,11 @@ import { PromotionsService } from '../promotions/promotions.service';
 import { FiscalService } from '../fiscal/fiscal.service';
 import { EquipmentService } from '../equipment/equipment.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { FindClientsDto } from './dto/find-clients.dto';
 import { FindClientDetailDto } from './dto/find-client-detail.dto';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientFiscalDto } from './dto/update-client-fiscal.dto';
 import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Clients')
@@ -49,77 +52,77 @@ export class ClientsController {
   // ── Alta de cliente ──────────────────────────────────────
   @Post()
   @Roles('ADMIN', 'OPERADOR')
-  createClient(@Request() req: any, @Body() body: any) {
+  createClient(@Request() req: AuthenticatedRequest, @Body() body: CreateClientDto) {
     return this.ops.createClient(req.user.id, body);
   }
 
   // ── Baja / Reactivación ──────────────────────────────────
   @Patch(':id/deactivate')
   @Roles('ADMIN', 'OPERADOR')
-  deactivateClient(@Request() req: any, @Param('id') id: string) {
+  deactivateClient(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.ops.deactivateClient(req.user.id, id);
   }
 
   @Patch(':id/reactivate')
   @Roles('ADMIN')
-  reactivateClient(@Request() req: any, @Param('id') id: string) {
+  reactivateClient(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.ops.reactivateClient(req.user.id, id);
   }
 
   // ── Suscripciones ────────────────────────────────────────
   @Patch(':id/subscriptions/:subId/plan')
   @Roles('ADMIN', 'OPERADOR')
-  updateSubPlan(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body('planId') planId: string) {
+  updateSubPlan(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string, @Body('planId') planId: string) {
     return this.ops.updateSubscriptionPlan(req.user.id, id, subId, planId);
   }
 
   @Patch(':id/subscriptions/:subId/deactivate')
   @Roles('ADMIN', 'OPERADOR')
-  deactivateSub(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string) {
+  deactivateSub(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string) {
     return this.ops.deactivateSubscription(req.user.id, id, subId);
   }
 
   @Patch(':id/subscriptions/:subId/reactivate')
   @Roles('ADMIN')
-  reactivateSub(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string) {
+  reactivateSub(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string) {
     return this.ops.reactivateSubscription(req.user.id, id, subId);
   }
 
   @Patch(':id/subscriptions/:subId')
   @Roles('ADMIN')
-  updateSubFechaAlta(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body('fechaAlta') fechaAlta: string) {
+  updateSubFechaAlta(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string, @Body('fechaAlta') fechaAlta: string) {
     return this.ops.updateSubscriptionFechaAlta(req.user.id, id, subId, fechaAlta);
   }
 
   // ── Pagos manuales ───────────────────────────────────────
   @Post(':id/subscriptions/:subId/payments')
   @Roles('ADMIN', 'OPERADOR')
-  createPayment(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body() body: { year: number; month: number }) {
+  createPayment(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string, @Body() body: { year: number; month: number }) {
     return this.ops.createManualPayment(req.user.id, id, subId, body.year, body.month);
   }
 
   @Delete(':id/subscriptions/:subId/payments/:periodId')
   @Roles('ADMIN')
-  deletePayment(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Param('periodId') periodId: string) {
+  deletePayment(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string, @Param('periodId') periodId: string) {
     return this.ops.deleteManualPayment(req.user.id, id, subId, periodId);
   }
 
   // ── Notas ────────────────────────────────────────────────
   @Get(':id/notes')
   @Roles('ADMIN', 'OPERADOR', 'VISOR')
-  getNotes(@Param('id') id: string) {
-    return this.ops.getNotes(id);
+  getNotes(@Param('id') id: string, @Query('page') page?: number, @Query('limit') limit?: number) {
+    return this.ops.getNotes(id, Number(page) || 1, Number(limit) || 50);
   }
 
   @Post(':id/notes')
   @Roles('ADMIN', 'OPERADOR')
-  createNote(@Request() req: any, @Param('id') id: string, @Body('content') content: string) {
+  createNote(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body('content') content: string) {
     return this.ops.createNote(req.user.id, id, content);
   }
 
   @Delete(':id/notes/:noteId')
   @Roles('ADMIN')
-  deleteNote(@Request() req: any, @Param('id') id: string, @Param('noteId') noteId: string) {
+  deleteNote(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('noteId') noteId: string) {
     return this.ops.deleteNote(req.user.id, id, noteId);
   }
 
@@ -133,13 +136,13 @@ export class ClientsController {
   // ── Datos fiscales ──────────────────────────────────────
   @Patch(':id/fiscal')
   @Roles('ADMIN', 'OPERADOR')
-  updateFiscal(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+  updateFiscal(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: UpdateClientFiscalDto) {
     return this.fiscalService.updateClientFiscal(req.user.id, id, body);
   }
 
   @Patch(':id/comprobante-config')
   @Roles('ADMIN', 'OPERADOR')
-  updateComprobanteConfig(@Request() req: any, @Param('id') id: string, @Body('tipoComprobante') tipoComprobante: TipoEmision) {
+  updateComprobanteConfig(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body('tipoComprobante') tipoComprobante: TipoEmision) {
     return this.fiscalService.updateComprobanteConfig(req.user.id, id, tipoComprobante);
   }
 
@@ -152,13 +155,13 @@ export class ClientsController {
 
   @Post(':id/subscriptions/:subId/promotions')
   @Roles('ADMIN', 'OPERADOR')
-  assignPromo(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Body('promotionId') promotionId: string) {
+  assignPromo(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string, @Body('promotionId') promotionId: string) {
     return this.promoService.assignToSubscription(req.user.id, id, subId, promotionId);
   }
 
   @Delete(':id/subscriptions/:subId/promotions/:promoId')
   @Roles('ADMIN')
-  removePromo(@Request() req: any, @Param('id') id: string, @Param('subId') subId: string, @Param('promoId') promoId: string) {
+  removePromo(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('subId') subId: string, @Param('promoId') promoId: string) {
     return this.promoService.removeFromSubscription(req.user.id, id, subId, promoId);
   }
 
@@ -171,13 +174,13 @@ export class ClientsController {
 
   @Post(':id/equipment')
   @Roles('ADMIN', 'OPERADOR')
-  assignEquipment(@Request() req: any, @Param('id') id: string, @Body() body: { equipmentId: string; notas?: string }) {
+  assignEquipment(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: { equipmentId: string; notas?: string }) {
     return this.equipmentService.assignToClient(req.user.id, id, body.equipmentId, body.notas);
   }
 
   @Patch(':id/equipment/:assignmentId/retirar')
   @Roles('ADMIN', 'OPERADOR')
-  retireEquipment(@Request() req: any, @Param('id') id: string, @Param('assignmentId') aId: string, @Body('notas') notas?: string) {
+  retireEquipment(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Param('assignmentId') aId: string, @Body('notas') notas?: string) {
     return this.equipmentService.retire(req.user.id, id, aId, notas);
   }
 
@@ -190,7 +193,7 @@ export class ClientsController {
 
   @Post(':id/tickets')
   @Roles('ADMIN', 'OPERADOR')
-  createTicket(@Request() req: any, @Param('id') id: string, @Body() body: { tipo: string; descripcion?: string }) {
+  createTicket(@Request() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: { tipo: string; descripcion?: string }) {
     return this.ticketsService.create(req.user.id, id, body.tipo as any, body.descripcion);
   }
 
@@ -203,7 +206,7 @@ export class ClientsController {
 
   @Post(':id/whatsapp-log')
   @Roles('ADMIN', 'OPERADOR')
-  logWhatsApp(@Request() req: any, @Param('id') id: string) {
+  logWhatsApp(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.ops.logWhatsApp(req.user.id, id);
   }
 }

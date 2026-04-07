@@ -7,6 +7,8 @@ import 'dayjs/locale/es';
 import { useNavigate } from 'react-router-dom';
 import { ticketsApi, clientsApi, getErrorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useDebouncedCallback } from '../../shared/hooks/useDebounce';
+import type { Ticket, TicketStats, PaginatedResponse, ClientWithDebt } from '../../types';
 
 dayjs.extend(relativeTime);
 dayjs.locale('es');
@@ -19,8 +21,8 @@ export default function TicketsPage() {
   const canOperate = hasRole('ADMIN', 'OPERADOR');
   const navigate = useNavigate();
 
-  const [data, setData] = useState<any>({ data: [], pagination: { total: 0 } });
-  const [stats, setStats] = useState<any>(null);
+  const [data, setData] = useState<PaginatedResponse<Ticket>>({ data: [], pagination: { total: 0, page: 1, limit: 20, totalPages: 0 } });
+  const [stats, setStats] = useState<TicketStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('ABIERTO');
   const [tipoFilter, setTipoFilter] = useState<string | undefined>();
@@ -30,7 +32,7 @@ export default function TicketsPage() {
   // Modal crear ticket
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
-  const [clientesOptions, setClientesOptions] = useState<any[]>([]);
+  const [clientesOptions, setClientesOptions] = useState<ClientWithDebt[]>([]);
   const [buscandoClientes, setBuscandoClientes] = useState(false);
   const [creando, setCreando] = useState(false);
 
@@ -51,7 +53,7 @@ export default function TicketsPage() {
     catch (err) { message.error(getErrorMessage(err)); }
   };
 
-  const buscarClientes = async (search: string) => {
+  const buscarClientes = useDebouncedCallback(async (search: string) => {
     if (!search || search.length < 2) return;
     setBuscandoClientes(true);
     try {
@@ -59,7 +61,7 @@ export default function TicketsPage() {
       setClientesOptions(res.data || []);
     } catch { /* ignore */ }
     finally { setBuscandoClientes(false); }
-  };
+  }, 350);
 
   const handleCrear = async () => {
     try {

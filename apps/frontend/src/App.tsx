@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ticketsApi } from './services/api';
+import { POLLING_INTERVALS } from './shared/constants';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import DashboardPage from './features/dashboard/DashboardPage';
@@ -42,11 +43,11 @@ function AppLayout() {
 
   useEffect(() => {
     if (!hasRole('ADMIN', 'OPERADOR')) return;
-    const load = () => ticketsApi.getStats().then((s: any) => setTicketsAbiertos(s.abiertos || 0)).catch(() => {});
+    const load = () => ticketsApi.getStats().then((s: { abiertos?: number }) => setTicketsAbiertos(s.abiertos || 0)).catch(() => {});
     load();
-    const interval = setInterval(load, 120_000); // cada 2 min
+    const interval = setInterval(load, POLLING_INTERVALS.TICKETS);
     return () => clearInterval(interval);
-  }, []);
+  }, [hasRole]);
 
   const menuItems = [
     // Operación diaria

@@ -3,9 +3,11 @@ import {
   ForbiddenException, NotFoundException, UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../../common/audit/audit.service';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { Public } from './public.decorator';
 import { Roles } from './roles.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -23,20 +25,27 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);
   }
 
+  @Post('refresh')
+  @Roles('ADMIN', 'OPERADOR', 'VISOR')
+  refresh(@Request() req: AuthenticatedRequest) {
+    return this.authService.refresh(req.user.id);
+  }
+
   @Get('me')
   @Roles('ADMIN', 'OPERADOR', 'VISOR')
-  me(@Request() req: any) {
+  me(@Request() req: AuthenticatedRequest) {
     return req.user;
   }
 
   @Post('change-password')
-  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
-    const user = await this.usersService.findByEmail(req.user.email);
+  async changePassword(@Request() req: AuthenticatedRequest, @Body() dto: ChangePasswordDto) {
+    const user = await this.usersService.findByEmailWithPassword(req.user.email);
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
     const valid = await this.usersService.validatePassword(dto.currentPassword, user.password);
@@ -56,7 +65,7 @@ export class AuthController {
 
   @Post('users')
   @Roles('ADMIN')
-  async createUser(@Body() dto: CreateUserDto, @Request() req: any) {
+  async createUser(@Body() dto: CreateUserDto, @Request() req: AuthenticatedRequest) {
     const user = await this.usersService.create(dto);
     await this.audit.log(req.user.id, 'USER_CREATED', 'USER', user.id, { email: dto.email, role: dto.role });
     return user;
@@ -67,7 +76,7 @@ export class AuthController {
   async updateUser(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     if (id === req.user.id && (dto.role || dto.isActive === false)) {
       throw new ForbiddenException('No podés modificar tu propio rol o desactivar tu cuenta');

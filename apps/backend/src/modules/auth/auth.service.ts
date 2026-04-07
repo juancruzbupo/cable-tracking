@@ -11,7 +11,7 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email.toLowerCase().trim());
+    const user = await this.usersService.findByEmailWithPassword(email.toLowerCase().trim());
 
     if (!user) throw new UnauthorizedException('Credenciales incorrectas');
     if (!user.isActive) throw new UnauthorizedException('Usuario inactivo');
@@ -24,5 +24,13 @@ export class AuthService {
       accessToken: this.jwtService.sign(payload),
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     };
+  }
+
+  async refresh(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (!user.isActive) throw new UnauthorizedException('Usuario inactivo');
+    const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
+    return { accessToken: this.jwtService.sign(payload) };
   }
 }

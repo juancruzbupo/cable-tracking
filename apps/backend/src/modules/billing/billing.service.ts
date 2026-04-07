@@ -5,6 +5,7 @@ import * as archiver from 'archiver';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ClientsService } from '../clients/clients.service';
 import { PdfGeneratorService } from './pdf-generator.service';
+import { toNumber } from '../../common/utils/decimal.util';
 
 const MONTH_NAMES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MONTH_SHORT = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -47,11 +48,11 @@ export class BillingService {
     for (const sub of client.subscriptions) {
       const icon = sub.tipo === 'CABLE' ? 'Cable' : 'Internet';
       const planName = sub.plan?.nombre || 'Sin plan';
-      const precio = sub.plan ? Number(sub.plan.precio) : 0;
+      const precio = sub.plan ? toNumber(sub.plan.precio) : 0;
       const pagado = sub.paymentPeriods.some((p) => p.year === year && p.month === month);
       const promosGratis = [
-        ...(sub.plan?.promotions || []).filter((p) => p.tipo === 'MESES_GRATIS').map((p) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo as any, valor: Number(p.valor), fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })),
-        ...(sub.clientPromotions || []).filter((cp) => cp.promotion.tipo === 'MESES_GRATIS').map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo as any, valor: Number(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
+        ...(sub.plan?.promotions || []).filter((p) => p.tipo === 'MESES_GRATIS').map((p) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo as any, valor: toNumber(p.valor), fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })),
+        ...(sub.clientPromotions || []).filter((cp) => cp.promotion.tipo === 'MESES_GRATIS').map((cp) => ({ id: cp.promotion.id, nombre: cp.promotion.nombre, tipo: cp.promotion.tipo as any, valor: toNumber(cp.promotion.valor), fechaInicio: cp.promotion.fechaInicio, fechaFin: cp.promotion.fechaFin })),
       ];
       const debt = this.clientsService.calculateSubDebt(sub.id, sub.tipo, sub.estado, sub.fechaAlta, sub.paymentPeriods, promosGratis);
 
@@ -119,7 +120,7 @@ export class BillingService {
 
     for (const sub of client.subscriptions) {
       const planName = sub.plan?.nombre || 'Sin plan';
-      const precio = sub.plan ? Number(sub.plan.precio) : 0;
+      const precio = sub.plan ? toNumber(sub.plan.precio) : 0;
       const pagado = sub.paymentPeriods.some((p: any) => p.year === year && p.month === month);
       doc.fontSize(10).font('Helvetica-Bold').text(`${sub.tipo} — ${planName}`, { continued: true });
       doc.font('Helvetica').text(precio > 0 ? `  $${precio}` : '  $—');
@@ -146,7 +147,7 @@ export class BillingService {
     const cablePaid = cable.filter((s) => s.paymentPeriods.length > 0);
     const internetPaid = internet.filter((s) => s.paymentPeriods.length > 0);
 
-    const calcMonto = (arr: typeof subs) => arr.reduce((sum, s) => sum + (s.plan ? Number(s.plan.precio) : 0), 0);
+    const calcMonto = (arr: typeof subs) => arr.reduce((sum, s) => sum + (s.plan ? toNumber(s.plan.precio) : 0), 0);
 
     const clientIds = [...new Set(subs.map((s) => s.client.id))];
     const clientsConPago = new Set(subs.filter((s) => s.paymentPeriods.length > 0).map((s) => s.client.id));

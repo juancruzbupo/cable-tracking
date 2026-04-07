@@ -130,6 +130,7 @@ model Client {
 
   @@index([estado])
   @@index([nombreNormalizado])
+  @@index([nombreOriginal])
   @@index([zona])
   @@map("clients")
 }
@@ -177,6 +178,8 @@ model Subscription {
   @@index([planId])
   @@index([clientId, estado])
   @@index([estado])
+  @@index([deudaCalculada])
+  @@index([estado, requiereCorte])
   @@map("subscriptions")
 }
 
@@ -367,6 +370,7 @@ model Comprobante {
   @@index([clientId])
   @@index([estado])
   @@index([fecha])
+  @@index([clientId, estado, fecha])
   @@map("comprobantes")
 }
 

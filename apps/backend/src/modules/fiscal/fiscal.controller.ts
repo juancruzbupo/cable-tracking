@@ -3,6 +3,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { FiscalService } from './fiscal.service';
 import { Roles } from '../auth/roles.decorator';
+import { UpdateEmpresaConfigDto } from './dto/update-empresa-config.dto';
+import { FindComprobantesDto } from './dto/find-comprobantes.dto';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 
 @ApiTags('Fiscal')
 @Controller('fiscal')
@@ -19,11 +22,11 @@ export class FiscalController {
 
   @Patch('config')
   @Roles('ADMIN')
-  updateConfig(@Request() req: any, @Body() body: any) { return this.fiscalService.updateConfig(req.user.id, body); }
+  updateConfig(@Request() req: AuthenticatedRequest, @Body() body: UpdateEmpresaConfigDto) { return this.fiscalService.updateConfig(req.user.id, body); }
 
   @Get('comprobantes')
   @Roles('ADMIN', 'OPERADOR')
-  findAll(@Query() q: any) { return this.fiscalService.findAll(q); }
+  findAll(@Query() q: FindComprobantesDto) { return this.fiscalService.findAll(q); }
 
   @Get('comprobantes/:id')
   @Roles('ADMIN', 'OPERADOR')
@@ -40,18 +43,18 @@ export class FiscalController {
 
   @Post('comprobantes/pago/:paymentPeriodId')
   @Roles('ADMIN', 'OPERADOR')
-  async emitirPorPago(@Request() req: any, @Param('paymentPeriodId') ppId: string) {
+  async emitirPorPago(@Request() req: AuthenticatedRequest, @Param('paymentPeriodId') ppId: string) {
     const pp = await this.fiscalService.getPaymentPeriod(ppId);
     return this.fiscalService.emitirComprobanteParaPago(pp.clientId, pp.subscriptionId || '', ppId, req.user.id);
   }
 
   @Post('comprobantes/batch')
   @Roles('ADMIN')
-  emitirBatch(@Request() req: any, @Body() body: { month: number; year: number }) {
+  emitirBatch(@Request() req: AuthenticatedRequest, @Body() body: { month: number; year: number }) {
     return this.fiscalService.emitirBatch(body.month, body.year, req.user.id);
   }
 
   @Patch('comprobantes/:id/anular')
   @Roles('ADMIN')
-  anular(@Request() req: any, @Param('id') id: string) { return this.fiscalService.anular(id, req.user.id); }
+  anular(@Request() req: AuthenticatedRequest, @Param('id') id: string) { return this.fiscalService.anular(id, req.user.id); }
 }

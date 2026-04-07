@@ -9,7 +9,7 @@ Sistema web completo para gestionar clientes de una empresa de cable e internet.
 Monorepo pnpm con 2 apps:
 
 ```
-apps/backend/   → NestJS 10 + Prisma 5 + PostgreSQL 16
+apps/backend/   → NestJS 10 + Prisma 6 + PostgreSQL 16
 apps/frontend/  → React 18 + TypeScript + Vite + Ant Design 5
 ```
 

@@ -134,9 +134,9 @@ export default function DashboardPage() {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} md={12}>
           <Card title="Tendencia de cobranza (12 meses)" role="img" aria-label="Gráfico de línea mostrando porcentaje de cobranza de los últimos 12 meses">
-            {tendencia?.meses?.length > 0 ? (
+            {(tendencia?.meses?.length ?? 0) > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={tendencia.meses}>
+                <LineChart data={tendencia!.meses}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                   <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
@@ -178,7 +178,7 @@ export default function DashboardPage() {
       {/* Fila 6 — Zonas */}
       {tieneZonas && (
         <Card title="Morosidad por zona" size="small" style={{ marginTop: 16 }}>
-          <Table dataSource={zonas.zonas} rowKey="zona" size="small" pagination={false} scroll={{ x: 600 }} columns={[
+          <Table dataSource={zonas!.zonas} rowKey="zona" size="small" pagination={false} scroll={{ x: 600 }} columns={[
             { title: 'Zona', dataIndex: 'zona', ellipsis: true },
             { title: 'Clientes', dataIndex: 'totalClientes', width: 80, align: 'center' as const },
             { title: 'Al día', dataIndex: 'alDia', align: 'center' as const, render: (v: number) => <Tag color="green">{v}</Tag> },

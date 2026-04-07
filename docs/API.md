@@ -71,6 +71,12 @@ Auth: JWT Bearer token en header `Authorization: Bearer <token>`
 | GET | /clients/:id/tickets | todos | Tickets del cliente |
 | POST | /clients/:id/tickets | ADMIN,OPER | Crear ticket `{ tipo, descripcion? }` |
 
+## WhatsApp
+| Metodo | Ruta | Roles | Descripcion |
+|---|---|---|---|
+| GET | /clients/:id/whatsapp-last | todos | Ultimo envio WhatsApp |
+| POST | /clients/:id/whatsapp-log | ADMIN,OPER | Registrar envio WhatsApp |
+
 ## Config comprobante del cliente
 | Metodo | Ruta | Roles | Descripcion |
 |---|---|---|---|

@@ -295,7 +295,25 @@ export interface EquipmentAssignment {
   createdAt: string;
 }
 
+export interface EquipmentStats {
+  totalEquipos: number;
+  porEstado: {
+    enDeposito: number;
+    asignados: number;
+    enReparacion: number;
+    deBaja: number;
+  };
+  porTipo: Record<string, number>;
+}
+
 // ── Tickets ────────────────────────────────────────────────────────────────
+
+export interface TicketStats {
+  abiertos: number;
+  resueltos: number;
+  tiempoPromedioResolucion: number;
+  porTipo: Record<string, number>;
+}
 
 export type TicketStatus = 'ABIERTO' | 'RESUELTO';
 export type TicketType = 'SIN_SENIAL' | 'LENTITUD_INTERNET' | 'RECONEXION' | 'INSTALACION' | 'CAMBIO_EQUIPO' | 'OTRO';
@@ -304,11 +322,11 @@ export interface Ticket {
   id: string;
   clientId: string;
   tipo: TicketType;
-  descripcion?: string | null;
+  descripcion: string | null;
   estado: TicketStatus;
-  notas?: string | null;
+  notas: string | null;
   creadoPor: string;
-  resuelto?: string | null;
+  resuelto: string | null;
   client?: { id: string; nombreNormalizado: string; codCli: string };
   createdAt: string;
   updatedAt: string;

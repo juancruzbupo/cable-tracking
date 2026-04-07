@@ -1,5 +1,5 @@
 import {
-  Injectable, BadRequestException, ConflictException, NotFoundException, ForbiddenException,
+  Injectable, Logger, BadRequestException, ConflictException, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
 import { ClientStatus, ServiceType } from '@prisma/client';
 import dayjs from 'dayjs';
@@ -10,6 +10,8 @@ import { FiscalService } from '../fiscal/fiscal.service';
 
 @Injectable()
 export class ClientsOperationsService {
+  private readonly logger = new Logger(ClientsOperationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -194,7 +196,7 @@ export class ClientsOperationsService {
     let comprobante = null;
     try {
       comprobante = await this.fiscalService.emitirComprobanteParaPago(clientId, subId, pp.id, userId);
-    } catch { /* silencioso — el pago se registró ok, el comprobante es secundario */ }
+    } catch (error) { this.logger.warn(`Error emitiendo comprobante para pago: ${error instanceof Error ? error.message : error}`); }
 
     return { ...pp, document: doc, comprobante };
   }
@@ -241,13 +243,20 @@ export class ClientsOperationsService {
     await this.audit.log(userId, 'NOTE_DELETED', 'NOTE', noteId);
   }
 
-  async getNotes(clientId: string) {
-    return this.prisma.clientNote.findMany({
-      where: { clientId },
-      include: { user: { select: { name: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+  async getNotes(clientId: string, page = 1, limit = 50) {
+    const take = Math.min(limit, 100);
+    const skip = (page - 1) * take;
+    const [data, total] = await Promise.all([
+      this.prisma.clientNote.findMany({
+        where: { clientId },
+        include: { user: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.clientNote.count({ where: { clientId } }),
+    ]);
+    return { data, pagination: { total, page, limit: take, totalPages: Math.ceil(total / take) } };
   }
 
   // ── Historial ────────────────────────────────────────────

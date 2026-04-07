@@ -3,6 +3,10 @@
 // Single source of truth for types shared between frontend/backend
 // ══════════════════════════════════════════════════════════════
 
+// All date fields are typed as `string` because they arrive as ISO 8601
+// strings after JSON serialization. Backend Prisma returns Date objects
+// but these types represent the wire format.
+
 // ── Enums ────────────────────────────────────────────────────
 
 export type ClientStatus = 'ACTIVO' | 'BAJA';
@@ -347,11 +351,24 @@ export interface EmpresaConfig {
   cuit: string;
   razonSocial: string;
   condicionFiscal: string;
-  domicilio: string | null;
+  domicilioFiscal: string | null;
+  ingresosBrutos: string | null;
+  fechaInicioAct: string | null;
   puntoVenta: number;
   providerName: string;
+  providerApiKey: string | null;
+  providerConfig: Record<string, unknown> | null;
+  actividadCodigo: string | null;
+  localidad: string | null;
+  logoUrl: string | null;
   umbralCorte: number;
+  zonaDefault: string | null;
   tfUsertoken: string | null;
   tfApikey: string | null;
   tfApitoken: string | null;
+  updatedAt: string;
+  updatedBy: string | null;
+  tfUsertokenConfigured?: boolean;
+  tfApikeyConfigured?: boolean;
+  tfApitokenConfigured?: boolean;
 }

@@ -40,9 +40,63 @@ export function setOnUnauthorized(callback: () => void) {
   onUnauthorized = callback;
 }
 
+let onTokenRefreshed: ((newToken: string) => void) | null = null;
+export function setOnTokenRefreshed(callback: (newToken: string) => void) {
+  onTokenRefreshed = callback;
+}
+
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+function processQueue(error: unknown, token: string | null = null) {
+  failedQueue.forEach((prom) => {
+    if (token) prom.resolve(token);
+    else prom.reject(error);
+  });
+  failedQueue = [];
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't try to refresh on login or refresh requests
+      if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/refresh')) {
+        if (onUnauthorized) onUnauthorized();
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers['Authorization'] = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await api.post('/auth/refresh');
+        const newToken: string = data.accessToken;
+        setAuthToken(newToken);
+        if (onTokenRefreshed) onTokenRefreshed(newToken);
+        processQueue(null, newToken);
+        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        if (onUnauthorized) onUnauthorized();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     if (error.response?.status === 401 && onUnauthorized) {
       onUnauthorized();
     }
@@ -258,6 +312,10 @@ export const authApi = {
   },
   me: async (): Promise<User> => {
     const { data } = await api.get('/auth/me');
+    return data;
+  },
+  refresh: async (): Promise<LoginResponse> => {
+    const { data } = await api.post('/auth/refresh');
     return data;
   },
 };

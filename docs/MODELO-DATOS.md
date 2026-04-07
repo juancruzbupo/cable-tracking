@@ -96,6 +96,7 @@ Plan de servicio con precio.
 | nombre | String | Ej: "Internet 100MB" |
 | tipo | ServiceType | CABLE / INTERNET |
 | precio | Decimal(10,2) | Precio mensual |
+| descripcion | String? | Descripcion del plan |
 | activo | Boolean | Soft delete |
 
 ### Document

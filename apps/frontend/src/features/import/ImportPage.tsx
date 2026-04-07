@@ -69,15 +69,15 @@ function ImportSection({ tipo }: { tipo: ImportType }) {
     }, 300);
     try {
       const result = await importApi.execute(s.file, tipo);
-      if (progressRef.current) clearInterval(progressRef.current);
       setImportProgress(100);
       set((p) => ({ ...p, result, loading: false }));
       message.success(`${labels[tipo]}: ${result.validRows} filas importadas`);
     } catch {
-      if (progressRef.current) clearInterval(progressRef.current);
       setImportProgress(0);
       set((p) => ({ ...p, loading: false, error: 'Error en la importación' }));
       message.error('Error en la importación');
+    } finally {
+      if (progressRef.current) { clearInterval(progressRef.current); progressRef.current = null; }
     }
   };
 

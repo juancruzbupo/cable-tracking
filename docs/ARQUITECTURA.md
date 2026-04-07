@@ -6,7 +6,7 @@
 |---|---|
 | Frontend | React 18 + TypeScript + Vite + Ant Design 5 |
 | Backend | NestJS 10 + TypeScript |
-| ORM | Prisma 5 |
+| ORM | Prisma 6 |
 | Base de datos | PostgreSQL 16 |
 | Autenticacion | JWT (passport-jwt) |
 | PDF | PDFKit |
@@ -21,7 +21,7 @@ cable-tracking/
 │   ├── backend/
 │   │   ├── prisma/
 │   │   │   ├── schema.prisma          → 16 modelos, 14 enums
-│   │   │   └── migrations/            → 17 migraciones
+│   │   │   └── migrations/            → 19 migraciones
 │   │   ├── scripts/                   → seed-admin, seed-plans, migrate-subscriptions
 │   │   └── src/
 │   │       ├── main.ts                → Bootstrap (CORS, Swagger, ValidationPipe, GlobalExceptionFilter)
